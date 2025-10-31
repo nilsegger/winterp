@@ -47,10 +47,17 @@ struct FunctionType {
   Types return_value;
 };
 
+struct Memory {
+  uint8_t flag;
+  uint64_t n; // Minimum / start
+  uint64_t maximum; // Only used for limit flags 0x01 and 0x05
+};
+
 // Stores the data of the varios sections
 struct wasm {
   std::vector<FunctionType> type_section;
   std::vector<typeidx> function_section;
+  std::vector<Memory> memory;
 };
 
 // returns the name corresponding to the section id
@@ -61,5 +68,8 @@ void parse_type_section(wasm &wasm, const std::vector<uint8_t> &data);
 
 // Stores the resulting function indices in wasm.function_section
 void parse_functions(wasm &wasm, const std::vector<uint8_t> &data);
+
+// Stores the list of memories into wasm.memory
+void parse_memory(wasm &wasm, const std::vector<uint8_t> &data);
 
 #endif // SECTIONS_HPP
