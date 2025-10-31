@@ -4,9 +4,11 @@ project(winterp LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SOURCES
     src/main.cpp
+    src/sections.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
