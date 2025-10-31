@@ -1,6 +1,7 @@
 #ifndef SECTIONS_HPP
 #define SECTIONS_HPP
 
+#include "instructions.hpp"
 #include <cstdint>
 #include <vector>
 
@@ -38,6 +39,11 @@ enum class Types : uint8_t {
   Nofunc = 0x73,
   Noextern = 0x72,
   None = 0x71,
+
+  // reftype
+  // https://webassembly.github.io/spec/core/binary/types.html#reference-types
+  RefHt = 0x64,
+  RefNullHt = 0x63
 };
 
 bool is_valid_heap_type(uint8_t type);
@@ -51,6 +57,13 @@ struct Memory {
   uint8_t flag;
   uint64_t n; // Minimum / start
   uint64_t maximum; // Only used for limit flags 0x01 and 0x05
+};
+
+
+struct Global {
+  Types valtype;
+  bool mutability;
+  std::vector<Instr> expr;
 };
 
 // Stores the data of the varios sections
@@ -71,5 +84,8 @@ void parse_functions(wasm &wasm, const std::vector<uint8_t> &data);
 
 // Stores the list of memories into wasm.memory
 void parse_memory(wasm &wasm, const std::vector<uint8_t> &data);
+
+// Stores the list of globals into wasm.global
+void parse_global(wasm &wasm, const std::vector<uint8_t> &data);
 
 #endif // SECTIONS_HPP

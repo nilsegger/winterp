@@ -66,6 +66,8 @@ int main(int argn, char **argc) {
       parse_functions(wasm, section_data);
     } else if(section_id == MEMORY_SECTION) {
        parse_memory(wasm, section_data); 
+    } else if(section_id == GLOBAL_SECTION) {
+       parse_global(wasm, section_data); 
     }
     
   } while (file.peek() != EOF);

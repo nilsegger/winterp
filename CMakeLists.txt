@@ -10,6 +10,7 @@ set(SOURCES
     src/main.cpp
     src/sections.cpp
     src/leb128.cpp
+    src/instructions.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

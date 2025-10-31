@@ -1,6 +1,8 @@
+#include "instructions.hpp"
 #include "leb128.hpp"
 #include "sections.hpp"
 #include <cassert>
+#include <iostream>
 
 bool is_valid_heap_type(uint8_t type) {
   return
@@ -116,4 +118,33 @@ void parse_memory(wasm &wasm, const std::vector<uint8_t> &data) {
 
     wasm.memory[i] = m;
   }
+}
+
+
+// Stores the list of globals into wasm.global
+void parse_global(wasm &wasm, const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_globals = uleb128_decode<uint32_t>(ptr, end);
+  wasm.memory.resize(num_globals);
+
+  for(int i = 0; i < num_globals; i++) {
+
+    uint32_t valtype = uleb128_decode<uint32_t>(ptr, end);
+
+    if(valtype != 0x7C && valtype != 0x7D && valtype != 0x7E && valtype != 0x7F) {
+      // TODO: implement https://webassembly.github.io/spec/core/binary/types.html#value-types
+      assert(false && "valtype not yet supported!!");
+    }
+
+    Global g;
+    g.valtype = static_cast<Types>(valtype);
+    g.mutability = uleb128_decode<uint8_t>(ptr, end);
+
+    Instr instr = parse_instruction(ptr, end);
+    while(instr.op != OpCode::End) {
+      g.expr.push_back(instr);     
+      instr = parse_instruction(ptr, end);
+    }
+   }
 }
