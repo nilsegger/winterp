@@ -109,9 +109,9 @@ void parse_memory(wasm &wasm, const std::vector<uint8_t> &data) {
   for (int i = 0; i < num_memories; i++) {
     Memory m;
     m.flag = uleb128_decode<uint32_t>(ptr, end);
-    m.n = uleb128_decode<uint64_t>(ptr, end);    
-    if(m.flag == 0x01 || m.flag == 0x05) {
-      m.maximum = uleb128_decode<uint64_t>(ptr, end);    
+    m.n = uleb128_decode<uint64_t>(ptr, end);
+    if (m.flag == 0x01 || m.flag == 0x05) {
+      m.maximum = uleb128_decode<uint64_t>(ptr, end);
     } else {
       m.maximum = 0;
     }
@@ -120,20 +120,20 @@ void parse_memory(wasm &wasm, const std::vector<uint8_t> &data) {
   }
 }
 
-
-// Stores the list of globals into wasm.global
 void parse_global(wasm &wasm, const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_globals = uleb128_decode<uint32_t>(ptr, end);
   wasm.memory.resize(num_globals);
 
-  for(int i = 0; i < num_globals; i++) {
+  for (int i = 0; i < num_globals; i++) {
 
     uint32_t valtype = uleb128_decode<uint32_t>(ptr, end);
 
-    if(valtype != 0x7C && valtype != 0x7D && valtype != 0x7E && valtype != 0x7F) {
-      // TODO: implement https://webassembly.github.io/spec/core/binary/types.html#value-types
+    if (valtype != 0x7C && valtype != 0x7D && valtype != 0x7E &&
+        valtype != 0x7F) {
+      // TODO: implement
+      // https://webassembly.github.io/spec/core/binary/types.html#value-types
       assert(false && "valtype not yet supported!!");
     }
 
@@ -142,9 +142,29 @@ void parse_global(wasm &wasm, const std::vector<uint8_t> &data) {
     g.mutability = uleb128_decode<uint8_t>(ptr, end);
 
     Instr instr = parse_instruction(ptr, end);
-    while(instr.op != OpCode::End) {
-      g.expr.push_back(instr);     
+    while (instr.op != OpCode::End) {
+      g.expr.push_back(instr);
       instr = parse_instruction(ptr, end);
     }
-   }
+  }
+}
+void parse_exports(wasm &wasm, const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_exports = uleb128_decode<uint32_t>(ptr, end);
+  wasm.exports.resize(num_exports);
+
+  for (int i = 0; i < num_exports; i++) {
+    const uint32_t string_length = uleb128_decode<uint32_t>(ptr, end);
+
+    Export e;
+    e.name = std::string(ptr, ptr + string_length);
+    ptr += string_length;
+
+    uint8_t kind = uleb128_decode<uint8_t>(ptr, end);
+    e.kind = static_cast<ExportKind>(kind);
+    e.idx = uleb128_decode<uint32_t>(ptr, end);
+
+    wasm.exports[i] = e;
+  }
 }

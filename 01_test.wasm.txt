@@ -380,8 +380,7 @@
 000048a: 02                                        ; alignment
 000048b: 00                                        ; store offset
 000048c: 0b                                        ; end
-0000480: 0c                                         std::cerr << "todo: not yet implemented\n";
-    std::abort();; FIXUP func body size
+0000480: 0c                                        ; FIXUP func body size
 ; function body 2
 000048d: 00                                        ; func body size (guess)
 000048e: 00                                        ; local decl count

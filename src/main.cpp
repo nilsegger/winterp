@@ -9,8 +9,6 @@
 #include "leb128.hpp"
 #include "sections.hpp"
 
-
-
 int main(int argn, char **argc) {
 
   if (argn < 2) {
@@ -57,19 +55,21 @@ int main(int argn, char **argc) {
     // Read the whole section at once, removes the need for parsing the padding
     // and should be faster than reading byte for byte
     std::vector<uint8_t> section_data(section_size);
-    file.read((char*)section_data.data(), section_size);
+    file.read((char *)section_data.data(), section_size);
 
     // TODO: lookup table? only more ergonomic...
     if (section_id == TYPE_SECTION) {
       parse_type_section(wasm, section_data);
     } else if (section_id == FUNCTION_SECTION) {
       parse_functions(wasm, section_data);
-    } else if(section_id == MEMORY_SECTION) {
-       parse_memory(wasm, section_data); 
-    } else if(section_id == GLOBAL_SECTION) {
-       parse_global(wasm, section_data); 
+    } else if (section_id == MEMORY_SECTION) {
+      parse_memory(wasm, section_data);
+    } else if (section_id == GLOBAL_SECTION) {
+      parse_global(wasm, section_data);
+    } else if (section_id == EXPORT_SECTION) {
+      parse_exports(wasm, section_data);
     }
-    
+
   } while (file.peek() != EOF);
 
   return 0;

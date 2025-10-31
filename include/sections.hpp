@@ -3,6 +3,7 @@
 
 #include "instructions.hpp"
 #include <cstdint>
+#include <string>
 #include <vector>
 
 // The reason i dont use a enum here is simply because its used exactly once
@@ -55,10 +56,9 @@ struct FunctionType {
 
 struct Memory {
   uint8_t flag;
-  uint64_t n; // Minimum / start
+  uint64_t n;       // Minimum / start
   uint64_t maximum; // Only used for limit flags 0x01 and 0x05
 };
-
 
 struct Global {
   Types valtype;
@@ -66,11 +66,26 @@ struct Global {
   std::vector<Instr> expr;
 };
 
+enum ExportKind : uint8_t {
+  func = 0x00,
+  table = 0x01,
+  mem = 0x02,
+  global = 0x03,
+  tag = 0x04,
+};
+
+struct Export {
+  std::string name;
+  ExportKind kind;
+  uint32_t idx;
+};
+
 // Stores the data of the varios sections
 struct wasm {
   std::vector<FunctionType> type_section;
   std::vector<typeidx> function_section;
   std::vector<Memory> memory;
+  std::vector<Export> exports;
 };
 
 // returns the name corresponding to the section id
@@ -87,5 +102,8 @@ void parse_memory(wasm &wasm, const std::vector<uint8_t> &data);
 
 // Stores the list of globals into wasm.global
 void parse_global(wasm &wasm, const std::vector<uint8_t> &data);
+
+// Stores the list of exports into wasm.exports
+void parse_exports(wasm &wasm, const std::vector<uint8_t> &data);
 
 #endif // SECTIONS_HPP
