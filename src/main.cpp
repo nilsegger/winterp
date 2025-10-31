@@ -6,31 +6,9 @@
 #include <iostream>
 #include <vector>
 
+#include "leb128.hpp"
 #include "sections.hpp"
 
-uint32_t uleb128_u32t(std::ifstream &file) {
-
-  // Read in bits of 8 until msb is 0
-  // TODO: preallocate, known max size,
-  // https://webassembly.github.io/spec/core/binary/values.html#integers
-  std::vector<uint8_t> blocks;
-  uint8_t block;
-
-  do {
-    file.read((char *)&block, 1);
-    blocks.push_back(block);
-  } while ((block & 0b10000000) > 0);
-
-  uint32_t result = 0;
-  for (int i = 0; i < blocks.size(); i++) {
-    // set msb to always be 0 such that it doesnt contribute, then shift
-    uint8_t block = blocks[i] & 0x7F;
-    int shift = i * 7;
-    result |= (block << shift);
-  }
-
-  return result;
-}
 
 
 int main(int argn, char **argc) {
@@ -66,15 +44,27 @@ int main(int argn, char **argc) {
   uint8_t section_id;
   uint32_t section_size;
 
+  wasm wasm;
+
   do {
     file.read((char *)&section_id, sizeof(section_id));
-    section_size = uleb128_u32t(file);
+    section_size = file_uleb128_u32t(file);
 
     std::cout << "; section " << section_name(section_id) << std::endl;
-    std::cout << static_cast<int>(section_size) << "\t\t\t section_size"
+    std::cout << static_cast<int>(section_size) << "\t\t\t; section_size"
               << std::endl;
 
-    file.seekg(section_size, std::ios::cur);
+    // Read the whole section at once, removes the need for parsing the padding
+    // and should be faster than reading byte for byte
+    std::vector<uint8_t> section_data(section_size);
+    file.read((char*)section_data.data(), section_size);
+
+    if (section_id == TYPE_SECTION) {
+      parse_type_section(wasm, section_data);
+    } else if (section_id == FUNCTION_SECTION) {
+      parse_functions(wasm, section_data);
+    }
+    
   } while (file.peek() != EOF);
 
   return 0;

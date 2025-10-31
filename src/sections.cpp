@@ -1,4 +1,13 @@
+#include "leb128.hpp"
 #include "sections.hpp"
+#include <cassert>
+#include <iostream>
+
+bool is_valid_heap_type(uint8_t type) {
+  return
+      // Number Types
+      (type >= 0x7B && type <= 0x7F) | (type >= 0x71 && type <= 0x74);
+}
 
 const char *section_name(uint8_t section) {
   switch (section) {
@@ -32,5 +41,61 @@ const char *section_name(uint8_t section) {
     return "tag";
   default:
     return "unknown";
+  }
+}
+
+void parse_type_section(wasm &wasm, const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_types = uleb128_u32t(ptr, end);
+
+  wasm.type_section.resize(num_types);
+
+  for (int i = 0; i < num_types; i++) {
+    const uint8_t type = uleb128_u32t(ptr, end);
+    assert(type == 0x60 && "wasm file not matching specifications, only "
+                           "functions in types is supported.");
+
+    FunctionType f;
+
+    // HeapTypes are encoded as typeidx for this section, therefore uint32_t is
+    // correct
+    // https://webassembly.github.io/spec/core/binary/modules.html#type-section
+    const uint8_t num_params = uleb128_u32t(ptr, end);
+    f.params.resize(num_params);
+
+    for (int j = 0; j < num_params; j++) {
+      uint32_t type = uleb128_u32t(ptr, end);
+      assert(is_valid_heap_type(type) && "Invalid heap type found for param!");
+      f.params[j] = static_cast<Types>(type);
+    }
+
+    const uint8_t num_results = uleb128_u32t(ptr, end);
+    assert(num_results <= 1 &&
+           "wasm does not support more than one return value.");
+
+    if (num_results == 0) {
+      f.return_value = Types::None;
+    } else {
+      uint32_t type = uleb128_u32t(ptr, end);
+      assert(is_valid_heap_type(type) &&
+             "Invalid heap type found for return value!");
+      f.return_value = static_cast<Types>(type);
+    }
+
+    wasm.type_section[i] = f;
+  }
+}
+
+void parse_functions(wasm &wasm, const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_functions = uleb128_u32t(ptr, end);
+
+  // Should be ok to return by value instead of taking a reference as argument
+  wasm.function_section.resize(num_functions);
+
+  for (int i = 0; i < num_functions; i++) {
+    wasm.function_section[i] = uleb128_u32t(ptr, end);
   }
 }
