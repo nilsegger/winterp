@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -6,11 +7,11 @@
 #include "instructions.hpp"
 #include "runtime.hpp"
 
-Runtime::Runtime(struct WasmFile &wasm) : wasm(wasm) {
+Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
   memory.resize(MEMORY_PAGE_SIZE);
 }
 
-void Runtime::push_stack(Immediate &imm) {
+void Runtime::push_stack(const Immediate &imm) {
   assert(imm.t != ImmediateRepr::Uninitialised);
   this->stack.push_back(imm);
 }
@@ -89,10 +90,7 @@ Immediate Runtime::read_memory(const uint32_t &mem_index,
   return read;
 }
 
-// Moves the program counter, until the next else / end is found, ignoring
-// nested conditions
-// The program counter will be left at the first instruction to be executed.
-void skip_block(const Code &c, int &pc) {
+void Runtime::skip_block(const Code &c, int &pc) {
 
   // Assumes skip_block was called directly while pc is still one the if
   pc++;
@@ -125,6 +123,99 @@ void skip_block(const Code &c, int &pc) {
   pc++;
 }
 
+Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
+                                            const Immediate &a,
+                                            const Immediate &b) {
+  Immediate result;
+  result.t = ImmediateRepr::I32;
+  if (op == OpCode::I32Add) {
+    result.v.n32 = a.v.n32 + b.v.n32;
+  } else if (op == OpCode::I32Mul) {
+    result.v.n32 = a.v.n32 * b.v.n32;
+  } else if (op == OpCode::I32Sub) {
+    result.v.n32 = a.v.n32 - b.v.n32;
+  } else if (op == OpCode::GT_S) {
+    result.v.n32 =
+        static_cast<int32_t>(a.v.n32) > static_cast<int32_t>(b.v.n32);
+  } else if (op == OpCode::LT_S) {
+    result.v.n32 =
+        static_cast<int32_t>(a.v.n32) < static_cast<int32_t>(b.v.n32);
+  } else {
+    assert(false && "todo: invalid binop for i32");
+  }
+
+  return result;
+}
+
+Immediate Runtime::handle_numeric_unop_f32(const OpCode &op,
+                                           const Immediate &a) {
+  Immediate result;
+  result.t = ImmediateRepr::F32;
+
+  if (op == OpCode::F32Abs) {
+    result.v.p32 = std::fabs(a.v.p32);
+  } else if (op == OpCode::F32Neg) {
+    result.v.p32 = -a.v.p32;
+  } else if (op == OpCode::F32Sqrt) {
+    result.v.p32 = std::sqrt(a.v.p32);
+  } else if (op == OpCode::F32Ceil) {
+    result.v.p32 = std::ceil(a.v.p32);
+  } else if (op == OpCode::F32Floor) {
+    result.v.p32 = std::floor(a.v.p32);
+  } else if (op == OpCode::F32Trunc) {
+    result.v.p32 = std::trunc(a.v.p32);
+  } else if (op == OpCode::F32Nearest) {
+    result.v.p32 = std::rintf(a.v.p32);
+  }
+  return result;
+}
+
+Immediate Runtime::handle_numeric_binop_f32(const OpCode &op,
+                                            const Immediate &a,
+                                            const Immediate &b) {
+  Immediate result;
+  result.t = ImmediateRepr::F32;
+  if (op == OpCode::F32Add) {
+    result.v.p32 = a.v.p32 + b.v.p32;
+  } else if (op == OpCode::F32Mul) {
+    result.v.p32 = a.v.p32 * b.v.p32;
+  } else if (op == OpCode::F32Sub) {
+    result.v.p32 = a.v.p32 - b.v.p32;
+  } else if (op == OpCode::F32Div) {
+    result.v.p32 = a.v.p32 / b.v.p32;
+  } else if (op == OpCode::F32Min) {
+    result.v.p32 = std::min(a.v.p32, b.v.p32);
+  } else if (op == OpCode::F32Max) {
+    result.v.p32 = std::max(a.v.p32, b.v.p32);
+  } else {
+
+    // Most likely a Comparison op
+    result.t = ImmediateRepr::I32;
+    if (op == OpCode::F32EQ) {
+      result.v.n32 = a.v.p32 == b.v.p32;
+    } else if (op == OpCode::F32Ne) {
+      result.v.n32 = a.v.p32 != b.v.p32;
+    }
+
+    else if (op == OpCode::F32Lt) {
+      result.v.n32 = a.v.p32 < b.v.p32;
+    } else if (op == OpCode::F32Gt) {
+      result.v.n32 = a.v.p32 > b.v.p32;
+    }
+
+    else if (op == OpCode::F32Le) {
+      result.v.n32 = a.v.p32 <= b.v.p32;
+    }
+
+    else if (op == OpCode::F32Ge) {
+      result.v.n32 = a.v.p32 >= b.v.p32;
+    } else {
+      assert(false && "todo: invalid binop for f32");
+    }
+  }
+  return result;
+}
+
 void Runtime::execute(int function_index) {
 
   std::cout << "Function " << std::dec << function_index << " called"
@@ -132,7 +223,7 @@ void Runtime::execute(int function_index) {
   std::cout << "Stack size " << this->stack.size() << std::endl;
 
   // Again, assumes all indices are valid...
-  Code &block = wasm.codes[function_index];
+  const Code &block = wasm.codes[function_index];
 
   std::cout << "Function has " << block.locals.size() << " locals."
             << std::endl;
@@ -143,7 +234,7 @@ void Runtime::execute(int function_index) {
             << std::endl;
 
   // important for stack information
-  FunctionType &signature = wasm.type_section[function_signature_index];
+  const FunctionType &signature = wasm.type_section[function_signature_index];
 
   std::cout << "Function has " << signature.params.size() << " params"
             << std::endl;
@@ -169,8 +260,16 @@ void Runtime::execute(int function_index) {
   // program counter, which instruction were currently running
   int pc = 0;
   while (pc < block.expr.size()) {
-   
-    Instr &instr = block.expr[pc];
+
+    const Instr &instr = block.expr[pc];
+
+    uint8_t op_byte = static_cast<uint8_t>(instr.op);
+
+    bool is_i32_numeric_binop = (op_byte >= 0x6A && op_byte <= 0x78) ||
+                                (op_byte >= 0x45 && op_byte <= 0x4F);
+    bool is_f32_numeric_unop = op_byte >= 0x8B && op_byte <= 0x91;
+    bool is_f32_numeric_binop = (op_byte >= 0x92 && op_byte <= 0x98) ||
+                                (op_byte >= 0x5B && op_byte <= 0x60);
 
     std::cout << "Read OP " << std::hex << instr.op << std::dec << std::endl;
 
@@ -180,16 +279,19 @@ void Runtime::execute(int function_index) {
     if (instr.op == OpCode::End) {
       // Treat as nop, only last End actually ends the function, the rest are
       // useful to know when control blocks end
-    } else if(instr.op == OpCode::Else) {
-       // We have landed in a Else block, which we do not want to execute 
-       // We know that we can skip this block, because if the if block would have taken the else route,
-       // skip_block would have stoped at the first op to actually execute after the else
-       std::cout << "Skipping else block!" << std::endl;
-       skip_block(block, pc);
-       continue;
+    } else if (instr.op == OpCode::Else) {
+      // We have landed in a Else block, which we do not want to execute
+      // We know that we can skip this block, because if the if block would have
+      // taken the else route, skip_block would have stoped at the first op to
+      // actually execute after the else
+      std::cout << "Skipping else block!" << std::endl;
+      skip_block(block, pc);
+      continue;
     } else if (instr.op == OpCode::Call) {
       execute(instr.imms[0].v.n32);
     } else if (instr.op == OpCode::I32Const) {
+      this->push_stack(instr.imms[0]);
+    } else if (instr.op == OpCode::F32Const) {
       this->push_stack(instr.imms[0]);
     }
 
@@ -223,32 +325,38 @@ void Runtime::execute(int function_index) {
         locals[index] = val;
       }
     }
-    /* NUMERIC INSTRUCTIONS */
-    else if (instr.op == OpCode::I32Add || instr.op == OpCode::I32Sub ||
-             instr.op == OpCode::I32Mul || instr.op == OpCode::GT_S ||
-             instr.op == OpCode::LT_S) {
+    /* UNOP NUMERIC INSTRUCTIONS */
+    else if (is_f32_numeric_unop) {
+      Immediate a = this->pop_stack();
+      Immediate b;
+      if (is_f32_numeric_unop) {
+        b = handle_numeric_unop_f32(instr.op, a);
+      } else {
+        assert(false && "todo!");
+      }
+      this->push_stack(b);
+    }
+    /* BINOP NUMERIC INSTRUCTIONS */
+    else if (is_i32_numeric_binop || is_f32_numeric_binop) {
       Immediate b = this->pop_stack();
       Immediate a = this->pop_stack();
 
       Immediate c;
-      c.t = ImmediateRepr::I32;
 
-      if (instr.op == OpCode::I32Add) {
-        c.v.n32 = a.v.n32 + b.v.n32;
-      } else if (instr.op == OpCode::I32Mul) {
-        c.v.n32 = a.v.n32 * b.v.n32;
-      } else if (instr.op == OpCode::I32Sub) {
-        c.v.n32 = a.v.n32 - b.v.n32;
-      } else if (instr.op == OpCode::GT_S) {
-        // TODO: signed?
-        c.v.n32 = static_cast<int32_t>(a.v.n32) > static_cast<int32_t>(b.v.n32);
-      } else if (instr.op == OpCode::LT_S) {
-        c.v.n32 = static_cast<int32_t>(a.v.n32) < static_cast<int32_t>(b.v.n32);
+      if (is_i32_numeric_binop) {
+        c = handle_numeric_binop_i32(instr.op, a, b);
+      } else if (is_f32_numeric_binop) {
+        c = handle_numeric_binop_f32(instr.op, a, b);
       } else {
-        assert(false && "todo");
+        assert(false && "todo!");
       }
 
       this->push_stack(c);
+    } else if (instr.op == OpCode::I32ReinterpF32) {
+      Immediate c1 = this->pop_stack();
+      assert(c1.t == ImmediateRepr::F32 && "invalid reinterpretation?");
+      c1.t = ImmediateRepr::I32;
+      this->push_stack(c1);
     } else if (instr.op == OpCode::If) {
       Immediate c = this->pop_stack();
       if (c.v.n32) {
