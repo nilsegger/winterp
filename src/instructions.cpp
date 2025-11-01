@@ -9,9 +9,9 @@
 void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
                 ImmediateRepr &imm2) {
 
-  imm0 = ImmediateRepr::Empty;
-  imm1 = ImmediateRepr::Empty;
-  imm2 = ImmediateRepr::Empty;
+  imm0 = ImmediateRepr::Uninitialised;
+  imm1 = ImmediateRepr::Uninitialised;
+  imm2 = ImmediateRepr::Uninitialised;
 
   // Numeric instructions without any immediates
   if(static_cast<uint8_t>(op) >= 0x45 && static_cast<uint8_t>(op) <= 0xC4) {
@@ -73,17 +73,20 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
 Immediate parse_immediate(const ImmediateRepr repr, const uint8_t *&start,
                           const uint8_t *end) {
 
-  assert(repr != ImmediateRepr::Empty && "Invalid immediate repr parsed.");
+  assert(repr != ImmediateRepr::Uninitialised && "Invalid immediate repr parsed.");
 
   Immediate imm;
+  imm.t = repr;
   if (repr == ImmediateRepr::I32) {
-    imm.n32 = uleb128_decode<uint32_t>(start, end);
+    imm.v.n32 = uleb128_decode<uint32_t>(start, end);
   } else if (repr == ImmediateRepr::I64) {
-    imm.n64 = uleb128_decode<uint64_t>(start, end);
+    imm.v.n64 = uleb128_decode<uint64_t>(start, end);
   } else if (repr == ImmediateRepr::F32) {
-    imm.p32 = read_float(start, end);
+    imm.v.p32 = read_float(start, end);
   } else if (repr == ImmediateRepr::F64) {
-    imm.p64 = read_double(start, end);
+    imm.v.p64 = read_double(start, end);
+  } else {
+    assert(false && "todo: invalid immediate repr");
   }
 
   return imm;
@@ -95,7 +98,7 @@ void parse_memarg(const uint8_t *&start, const uint8_t *end, Instr& instr) {
   Immediate n = parse_immediate(ImmediateRepr::I32, start, end);
   instr.imms.push_back(n);
 
-  if(n.n32 >= 64) { // 2^6
+  if(n.v.n32 >= 64) { // 2^6
    // x
    instr.imms.push_back(parse_immediate(ImmediateRepr::I32, start, end));
   } 
@@ -124,15 +127,15 @@ Instr parse_instruction(const uint8_t *&start, const uint8_t *end) {
   // TODO: maybe precount to use resize
   // the reason i dont use fixed imm0-2 in Instr is due to edge cases requiring
   // lists
-  if (imm0 != ImmediateRepr::Empty) {
+  if (imm0 != ImmediateRepr::Uninitialised) {
     instr.imms.push_back(parse_immediate(imm0, start, end));
   }
 
-  if (imm1 != ImmediateRepr::Empty) {
+  if (imm1 != ImmediateRepr::Uninitialised) {
     instr.imms.push_back(parse_immediate(imm1, start, end));
   }
 
-  if (imm2 != ImmediateRepr::Empty) {
+  if (imm2 != ImmediateRepr::Uninitialised) {
     instr.imms.push_back(parse_immediate(imm2, start, end));
   }
 

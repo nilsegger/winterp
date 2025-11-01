@@ -26,7 +26,7 @@ class Runtime {
 
     // Writes the number to the memory in little-endian bytes https://webassembly.github.io/spec/core/exec/numerics.html#storage
     // mem_index denotes the index of the memory to use of the store
-    void write_memory(const uint32_t& mem_index, const uint32_t& offset, const ImmediateRepr repr, const Immediate& imm);
+    void write_memory(const uint32_t& mem_index, const uint32_t& offset, const Immediate& imm);
 
 
     // Executes the function given by its index, storing the results on the stack or memory.
@@ -37,8 +37,7 @@ class Runtime {
     Runtime(struct WasmFile& wasm);
 
     // Takes as input the name of a function, looks it up in the exports and executes it.
-    // The result will be stored in result_repr and result
-    void run(std::string& function, ImmediateRepr& result_repr, Immediate& result);
+    void run(std::string& function);
 
 
     // Reads from memory at offset, currently mem_index is ignored due to missing store impl.

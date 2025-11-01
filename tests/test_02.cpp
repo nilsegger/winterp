@@ -4,32 +4,37 @@
 #include "runtime.hpp"
 #include "sections.hpp"
 
-TEST(test02, _test_call_add) {
-  WasmFile wasm;
-  EXPECT_EQ(wasm.read("02_test_prio1.wasm"), 0);
+class Test02 : public ::testing::Test {
+protected:
+    static WasmFile wasm;   
 
-  std::string func = "_test_call_add";
-  ImmediateRepr result_repr;
-  Immediate result;
+    static void SetUpTestSuite() {
+        EXPECT_EQ(wasm.read("02_test_prio1.wasm"), 0);
+    }
 
-  
-  Runtime runtime(wasm);
-  runtime.run(func, result_repr, result);
+    static void TearDownTestSuite() {
+    }
+};
 
-  EXPECT_EQ(runtime.read_memory(2, 0, ImmediateRepr::I32).n32, 15);
+WasmFile Test02::wasm;
+
+// Define macro for templated test generation
+#define WASM_I32_TEST(func_name, expected_value)                       \
+TEST_F(Test02, func_name) {                                            \
+  std::string func = #func_name;                                       \
+                                                                       \
+  Runtime runtime(wasm);                                               \
+  runtime.run(func);                                           \
+  Immediate result = runtime.read_memory(2, 0, ImmediateRepr::I32);   \
+                                                                       \
+  EXPECT_EQ(result.v.n32, expected_value);                                           \
 }
- 
-TEST(test02, _test_call_composition) {
-  WasmFile wasm;
-  EXPECT_EQ(wasm.read("02_test_prio1.wasm"), 0);
 
-  std::string func = "_test_call_composition";
-  ImmediateRepr result_repr;
-  Immediate result;
-  
-  Runtime runtime(wasm);
-  runtime.run(func, result_repr, result);
-
-  EXPECT_EQ(runtime.read_memory(2, 0, ImmediateRepr::I32).n32, 35);
-}
- 
+WASM_I32_TEST(_test_call_add, 15);
+WASM_I32_TEST(_test_call_composition, 35);
+WASM_I32_TEST(_test_call_square, 49);
+WASM_I32_TEST(_test_call_multiple, 25);
+// WASM_I32_TEST(_test_return_early_true, 25);
+// WASM_I32_TEST(_test_return_early_false, 25);
+// WASM_I32_TEST(_test_abs_negative, 25);
+// WASM_I32_TEST(_test_abs_positive, 25);

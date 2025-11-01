@@ -46,7 +46,7 @@ const char *section_name(uint8_t section) {
   }
 }
 
-Types WasmFile::read_valtype(const uint8_t* &ptr, const uint8_t* end) {
+ImmediateRepr WasmFile::read_valtype(const uint8_t* &ptr, const uint8_t* end) {
     uint32_t valtype = uleb128_decode<uint32_t>(ptr, end);
 
     if (valtype != 0x7C && valtype != 0x7D && valtype != 0x7E &&
@@ -57,7 +57,7 @@ Types WasmFile::read_valtype(const uint8_t* &ptr, const uint8_t* end) {
       assert(false && "valtype not yet supported!!");
     }
 
-  return static_cast<Types>(valtype);
+  return static_cast<ImmediateRepr>(valtype);
 }
 
 void WasmFile::parse_type_section(const std::vector<uint8_t> &data) {
@@ -83,7 +83,7 @@ void WasmFile::parse_type_section(const std::vector<uint8_t> &data) {
     for (int j = 0; j < num_params; j++) {
       uint32_t type = uleb128_decode<uint32_t>(ptr, end);
       assert(is_valid_heap_type(type) && "Invalid heap type found for param!");
-      f.params[j] = static_cast<Types>(type);
+      f.params[j] = static_cast<ImmediateRepr>(type);
     }
 
     const uint8_t num_results = uleb128_decode<uint32_t>(ptr, end);
@@ -91,12 +91,12 @@ void WasmFile::parse_type_section(const std::vector<uint8_t> &data) {
            "wasm does not support more than one return value.");
 
     if (num_results == 0) {
-      f.return_value = Types::None;
+      f.return_value = ImmediateRepr::None;
     } else {
       uint32_t type = uleb128_decode<uint32_t>(ptr, end);
       assert(is_valid_heap_type(type) &&
              "Invalid heap type found for return value!");
-      f.return_value = static_cast<Types>(type);
+      f.return_value = static_cast<ImmediateRepr>(type);
     }
 
     this->type_section[i] = f;
@@ -187,8 +187,8 @@ void WasmFile::parse_code(const std::vector<uint8_t> &data) {
     c.locals.resize(locals);
 
     for(int j = 0; j < locals; j++) {
-      c.locals[j].n = uleb128_decode<uint32_t>(ptr, end);
-      c.locals[j].t = read_valtype(ptr, end);
+      c.locals[j].count = uleb128_decode<uint32_t>(ptr, end);
+      c.locals[j].type = read_valtype(ptr, end);
     }
 
     read_expr(ptr, end, c.expr);

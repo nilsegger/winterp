@@ -49,18 +49,37 @@ enum OpCode {
 };
 
 enum ImmediateRepr : uint8_t {
-  Empty = 0,
-  I32 = 1,
-  I64 = 2,
-  F32 = 3,
-  F64 = 4
+
+  Uninitialised = 0x00,
+  
+  // Number types
+  I32 = 0x7F,
+  I64 = 0x7E,
+  F32 = 0x7D,
+  F64 = 0x7C,
+
+  // Heap Type
+  Noexn = 0x74,
+  Nofunc = 0x73,
+  Noextern = 0x72,
+  None = 0x71,
+
+  // reftype
+  // https://webassembly.github.io/spec/core/binary/types.html#reference-types
+  RefHt = 0x64,
+  RefNullHt = 0x63
 };
 
-union Immediate {
+union Value {
   uint32_t n32; 
   uint64_t n64; 
   float p32;
   double p64;
+};
+
+struct Immediate {
+  ImmediateRepr t;
+  Value v;
 };
 
 struct Instr {

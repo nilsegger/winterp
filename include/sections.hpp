@@ -31,31 +31,12 @@ typedef uint32_t typeidx;
 
 // https://webassembly.github.io/spec/core/appendix/index-types.html
 
-enum class Types : uint8_t {
-  // Number types
-  I32 = 0x7F,
-  I64 = 0x7E,
-  F32 = 0x7D,
-  F64 = 0x7C,
-  V128 = 0x7B,
-
-  // Heap Type
-  Noexn = 0x74,
-  Nofunc = 0x73,
-  Noextern = 0x72,
-  None = 0x71,
-
-  // reftype
-  // https://webassembly.github.io/spec/core/binary/types.html#reference-types
-  RefHt = 0x64,
-  RefNullHt = 0x63
-};
 
 bool is_valid_heap_type(uint8_t type);
 
 struct FunctionType {
-  std::vector<Types> params;
-  Types return_value;
+  std::vector<ImmediateRepr> params;
+  ImmediateRepr return_value;
 };
 
 struct Memory {
@@ -65,7 +46,7 @@ struct Memory {
 };
 
 struct Global {
-  Types valtype;
+  ImmediateRepr valtype;
   bool mutability;
   std::vector<Instr> expr;
 };
@@ -85,8 +66,8 @@ struct Export {
 };
 
 struct Local {
-  uint32_t n;
-  Types t;
+  uint32_t count;
+  ImmediateRepr type;
 };
 
 struct Code {
@@ -101,7 +82,7 @@ struct WasmFile {
 
     // Reads in a valtype as defined in
     // https://webassembly.github.io/spec/core/binary/types.html#value-types
-    Types read_valtype(const uint8_t* &ptr, const uint8_t* end);
+    ImmediateRepr read_valtype(const uint8_t* &ptr, const uint8_t* end);
 
     // Parses the Type Section and stores the resulting types in wasm.type_section
     void parse_type_section(const std::vector<uint8_t> &data);

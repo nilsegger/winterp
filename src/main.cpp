@@ -1,13 +1,9 @@
-#include <array>
 #include <cassert>
-#include <cstdint>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 #include <vector>
 
 #include "instructions.hpp"
-#include "leb128.hpp"
 #include "runtime.hpp"
 #include "sections.hpp"
 
@@ -41,7 +37,7 @@ int main(int argn, char **argc) {
     for(auto& instr: f.expr) {
       std::cout << std::hex << instr.op << "\t\t";
       for(auto& imm: instr.imms) {
-        std::cout << std::hex << imm.n32 << ",\t";
+        std::cout << std::hex << imm.v.n32 << ",\t";
       }
       std::cout<<std::endl;
     }
@@ -50,9 +46,7 @@ int main(int argn, char **argc) {
   Runtime runtime(wasm);
 
   std::string func = "_test_call_add";
-  ImmediateRepr result_repr;
-  Immediate result;
-  runtime.run(func, result_repr, result);
+  runtime.run(func);
 
   return 0;
 }
