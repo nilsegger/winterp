@@ -19,7 +19,6 @@ T uleb128_from_blocks(const std::vector<uint8_t>& blocks) {
   return result;
 }
 
-
 template<typename T>
 T uleb128_decode(const uint8_t* &start, const uint8_t* end) {
 
@@ -55,6 +54,16 @@ uint32_t uleb128_u32t(const uint8_t* &start, const uint8_t* end);
 
 // Starts reading the bytes at start and converts from uleb128 to uint64_t
 uint64_t uleb128_u64t(const uint8_t* &start, const uint8_t* end);
+
+// Reads a single byte without any conversion
+uint8_t read_byte(const uint8_t* &start, const uint8_t* end);
+
+// Reads a float from start based on the IEEE754 standard.
+// and moves the start pointer to its end
+float read_float(const uint8_t* &start, const uint8_t* end);
+
+// Reads a double from start based on the IEEE754 standard.
+double read_double(const uint8_t* &start, const uint8_t* end);
 
 #endif // ULEB_HPP
 

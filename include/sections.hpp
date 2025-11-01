@@ -80,16 +80,31 @@ struct Export {
   uint32_t idx;
 };
 
+struct Local {
+  uint32_t n;
+  Types t;
+};
+
+struct Code {
+  std::vector<Local> locals;
+  std::vector<Instr> expr;
+};
+
 // Stores the data of the varios sections
 struct wasm {
   std::vector<FunctionType> type_section;
   std::vector<typeidx> function_section;
   std::vector<Memory> memory;
   std::vector<Export> exports;
+  std::vector<Code> codes;
 };
 
 // returns the name corresponding to the section id
 const char *section_name(uint8_t section);
+
+// Reads in a valtype as defined in
+// https://webassembly.github.io/spec/core/binary/types.html#value-types
+Types read_valtype(const uint8_t* &ptr, const uint8_t* end);
 
 // Parses the Type Section and stores the resulting types in wasm.type_section
 void parse_type_section(wasm &wasm, const std::vector<uint8_t> &data);
@@ -105,5 +120,8 @@ void parse_global(wasm &wasm, const std::vector<uint8_t> &data);
 
 // Stores the list of exports into wasm.exports
 void parse_exports(wasm &wasm, const std::vector<uint8_t> &data);
+
+// Stores the list of codes into wasm.codes
+void parse_code(wasm &wasm, const std::vector<uint8_t> &data);
 
 #endif // SECTIONS_HPP

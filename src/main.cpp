@@ -52,8 +52,7 @@ int main(int argn, char **argc) {
     std::cout << static_cast<int>(section_size) << "\t\t\t; section_size"
               << std::endl;
 
-    // Read the whole section at once, removes the need for parsing the padding
-    // and should be faster than reading byte for byte
+    // assumes code files are not larger that working memory...
     std::vector<uint8_t> section_data(section_size);
     file.read((char *)section_data.data(), section_size);
 
@@ -68,6 +67,8 @@ int main(int argn, char **argc) {
       parse_global(wasm, section_data);
     } else if (section_id == EXPORT_SECTION) {
       parse_exports(wasm, section_data);
+    } else if (section_id == CODE_SECTION) {
+      parse_code(wasm, section_data);
     }
 
   } while (file.peek() != EOF);

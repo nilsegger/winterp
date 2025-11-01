@@ -45,6 +45,20 @@ const char *section_name(uint8_t section) {
   }
 }
 
+Types read_valtype(const uint8_t* &ptr, const uint8_t* end) {
+    uint32_t valtype = uleb128_decode<uint32_t>(ptr, end);
+
+    if (valtype != 0x7C && valtype != 0x7D && valtype != 0x7E &&
+        valtype != 0x7F) {
+      // TODO: implement
+      // https://webassembly.github.io/spec/core/binary/types.html#value-types
+      std::cout << "Unsupported valtype " << std::hex << valtype << std::endl;
+      assert(false && "valtype not yet supported!!");
+    }
+
+  return static_cast<Types>(valtype);
+}
+
 void parse_type_section(wasm &wasm, const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
@@ -120,6 +134,7 @@ void parse_memory(wasm &wasm, const std::vector<uint8_t> &data) {
   }
 }
 
+
 void parse_global(wasm &wasm, const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
@@ -128,26 +143,14 @@ void parse_global(wasm &wasm, const std::vector<uint8_t> &data) {
 
   for (int i = 0; i < num_globals; i++) {
 
-    uint32_t valtype = uleb128_decode<uint32_t>(ptr, end);
-
-    if (valtype != 0x7C && valtype != 0x7D && valtype != 0x7E &&
-        valtype != 0x7F) {
-      // TODO: implement
-      // https://webassembly.github.io/spec/core/binary/types.html#value-types
-      assert(false && "valtype not yet supported!!");
-    }
-
     Global g;
-    g.valtype = static_cast<Types>(valtype);
+    g.valtype = read_valtype(ptr, end);
     g.mutability = uleb128_decode<uint8_t>(ptr, end);
 
-    Instr instr = parse_instruction(ptr, end);
-    while (instr.op != OpCode::End) {
-      g.expr.push_back(instr);
-      instr = parse_instruction(ptr, end);
-    }
+    read_expr(ptr, end, g.expr);
   }
 }
+
 void parse_exports(wasm &wasm, const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
@@ -167,4 +170,28 @@ void parse_exports(wasm &wasm, const std::vector<uint8_t> &data) {
 
     wasm.exports[i] = e;
   }
+}
+
+void parse_code(wasm &wasm, const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_functions = uleb128_decode<uint32_t>(ptr, end);
+  wasm.codes.resize(num_functions);
+
+  for(int i = 0; i < num_functions; i++) {
+    std::cout << "Working on func " << std::dec << i << std::endl;
+    uint32_t func_body_size = uleb128_decode<uint32_t>(ptr, end);
+    uint32_t locals = uleb128_decode<uint32_t>(ptr, end);
+
+    Code c;
+    c.locals.resize(locals);
+
+    for(int j = 0; j < locals; j++) {
+      c.locals[j].n = uleb128_decode<uint32_t>(ptr, end);
+      c.locals[j].t = read_valtype(ptr, end);
+    }
+
+    read_expr(ptr, end, c.expr);
+  }
+
 }
