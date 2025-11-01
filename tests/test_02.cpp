@@ -40,6 +40,17 @@ WasmFile Test02::wasm;
     EXPECT_EQ(result.v.p32, expected_value);                                   \
   }
 
+#define WASM_F64_TEST(func_name, expected_value)                               \
+  TEST_F(Test02, func_name) {                                                  \
+    std::string func = #func_name;                                             \
+                                                                               \
+    Runtime runtime(wasm);                                                     \
+    runtime.run(func);                                                         \
+    Immediate result = runtime.read_memory(2, 0, ImmediateRepr::F64);          \
+                                                                               \
+    EXPECT_EQ(result.v.p64, expected_value);                                   \
+  }
+
 WASM_I32_TEST(_test_call_add, 15);
 WASM_I32_TEST(_test_call_composition, 35);
 WASM_I32_TEST(_test_call_square, 49);
@@ -69,3 +80,33 @@ WASM_I32_TEST(_test_f32_gt, 1);
 WASM_I32_TEST(_test_f32_le, 1);
 WASM_I32_TEST(_test_f32_ge, 1);
 WASM_F32_TEST(_test_f32_call, 4.0);
+
+
+// Problem with these tests are that for al of them the lower 32 bits are 0...
+WASM_I32_TEST(_test_f64_add, 0.0);
+WASM_I32_TEST(_test_f64_mul, 0.0);
+WASM_I32_TEST(_test_f64_sqrt, 0.0);
+WASM_I32_TEST(_test_f64_gt, 1);
+
+WASM_F32_TEST(_test_convert_i32_to_f32_s, 42.0);
+WASM_F32_TEST(_test_convert_i32_to_f32_u, 42.0);
+WASM_I32_TEST(_test_convert_f32_to_i32_s, 42);
+WASM_I32_TEST(_test_convert_f32_to_i32_u, 42);
+// again, lower bits will be 0...
+WASM_I32_TEST(_test_convert_i32_to_f64_s, 0);
+WASM_I32_TEST(_test_convert_f64_to_i32_s, 100);
+WASM_I32_TEST(_test_promote_f32_to_f64, 0);
+WASM_F32_TEST(_test_demote_f64_to_f32, 3.5);
+WASM_I32_TEST(_test_reinterpret_f32_to_i32, 0x3F800000);
+WASM_I32_TEST(_test_reinterpret_i32_to_f32, 0x40400000);
+// WASM_I32_TEST(_test_drop_simple, 0);
+// WASM_I32_TEST(_test_drop_multiple, 0);
+// WASM_I32_TEST(_test_nop, 0);
+// WASM_I32_TEST(_test_drop_in_computation, 0);
+// WASM_I32_TEST(_test_memory_size, 0);
+// WASM_I32_TEST(_test_memory_grow, 0);
+// WASM_I32_TEST(_test_memory_size_after_grow, 0);
+// WASM_I32_TEST(_test_memory_grow_multiple, 0);
+// WASM_I32_TEST(_test_memory_write_grown, 0);
+// WASM_I32_TEST(_test_combined_functions, 0);
+// WASM_I32_TEST(_test_combined_float_convert, 0);

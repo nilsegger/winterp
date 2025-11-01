@@ -43,6 +43,22 @@ class Runtime {
     // The valid OpCodes for this function are limited to binop's for f32
     // Resulting immediate is not limited to f32, result of comparisons will be set to i32
     Immediate handle_numeric_binop_f32(const OpCode& op, const Immediate& a, const Immediate& b);
+    
+    // Computes the resulting Immediate based on the value of OpCode
+    // The valid OpCodes for this function are limited to unop's for f64
+    Immediate handle_numeric_unop_f64(const OpCode& op, const Immediate& a);
+
+    // Computes the resulting Immediate based on the value of OpCode
+    // The valid OpCodes for this function are limited to binop's for f64
+    // Resulting immediate is not limited to f64, result of comparisons will be set to i32
+    Immediate handle_numeric_binop_f64(const OpCode& op, const Immediate& a, const Immediate& b);
+
+    // Converts, Promotes or demotes 'a' based on OpCode.
+    Immediate handle_conversion(const OpCode& op, const Immediate& a);
+    
+    // Changes the type of A from 'from' to 'to'. No casting or actual conversion is done.
+    // Will assert that the current type of a is 'from'.
+    Immediate reinterp(const Immediate& a, const ImmediateRepr from, const ImmediateRepr to);
 
     // Executes the function given by its index, storing the results on the stack or memory.
     // It takes an index because function information such as parameters and actual body are stored in different structs in wasm
