@@ -81,7 +81,6 @@ WASM_I32_TEST(_test_f32_le, 1);
 WASM_I32_TEST(_test_f32_ge, 1);
 WASM_F32_TEST(_test_f32_call, 4.0);
 
-
 // Problem with these tests are that for al of them the lower 32 bits are 0...
 WASM_I32_TEST(_test_f64_add, 0.0);
 WASM_I32_TEST(_test_f64_mul, 0.0);
@@ -104,10 +103,12 @@ WASM_I32_TEST(_test_drop_simple, 42);
 WASM_I32_TEST(_test_drop_multiple, 100);
 WASM_I32_TEST(_test_nop, 42);
 WASM_I32_TEST(_test_drop_in_computation, 50);
-// WASM_I32_TEST(_test_memory_size, 0);
-// WASM_I32_TEST(_test_memory_grow, 0);
-// WASM_I32_TEST(_test_memory_size_after_grow, 0);
-// WASM_I32_TEST(_test_memory_grow_multiple, 0);
-// WASM_I32_TEST(_test_memory_write_grown, 0);
-// WASM_I32_TEST(_test_combined_functions, 0);
-// WASM_I32_TEST(_test_combined_float_convert, 0);
+
+WASM_I32_TEST(_test_memory_size, 1);
+WASM_I32_TEST(_test_memory_grow, 1);
+WASM_I32_TEST(_test_memory_size_after_grow, 2);
+WASM_I32_TEST(_test_memory_grow_multiple, 1);
+WASM_I32_TEST(_test_memory_write_grown, 999);
+
+WASM_I32_TEST(_test_combined_functions, 11);
+WASM_I32_TEST(_test_combined_float_convert, 21);

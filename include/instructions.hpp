@@ -10,7 +10,7 @@ enum OpCode {
   Nop = 0x01,
   Drop = 0x1A,
   Select = 0x1B,
-  Select_t = 0x1C, // Followed by a list  
+  Select_t = 0x1C, // Followed by a list
 
   // Numeric Instructions
   I32Const = 0x41,
@@ -58,8 +58,6 @@ enum OpCode {
   F64Div = 0xA3,
   F64Min = 0xA4,
   F64Max = 0xA5,
-
- 
 
   F64EQ = 0x61,
   F64Ne = 0x62,
@@ -122,7 +120,7 @@ enum OpCode {
 enum ImmediateRepr : uint8_t {
 
   Uninitialised = 0x00,
-  
+
   // Number types
   I32 = 0x7F,
   I64 = 0x7E,
@@ -142,8 +140,8 @@ enum ImmediateRepr : uint8_t {
 };
 
 union Value {
-  uint32_t n32; 
-  uint64_t n64; 
+  uint32_t n32;
+  uint64_t n64;
   float p32;
   double p64;
 };
@@ -158,11 +156,13 @@ struct Instr {
   std::vector<Immediate> imms;
 };
 
-// Reads the opcode and depending on it reads multiple immediates to finally return the Instr
-Instr parse_instruction(const uint8_t* &start, const uint8_t* end);
+// Reads the opcode and depending on it reads multiple immediates to finally
+// return the Instr
+Instr parse_instruction(const uint8_t *&start, const uint8_t *end);
 
-// Reads all instructions starting from ptr until 0x0b (end code) is read and builds the expression vector result.
-void read_expr(const uint8_t* &ptr, const uint8_t* end, std::vector<Instr>& result);
+// Reads all instructions starting from ptr until 0x0b (end code) is read and
+// builds the expression vector result.
+void read_expr(const uint8_t *&ptr, const uint8_t *end,
+               std::vector<Instr> &result);
 
 #endif // INSTRUCTIONS_HPP
- 

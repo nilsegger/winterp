@@ -9,6 +9,7 @@
 
 Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
   memory.resize(MEMORY_PAGE_SIZE);
+  pages = 1;
 }
 
 void Runtime::push_stack(const Immediate &imm) {
@@ -437,7 +438,7 @@ void Runtime::execute(int function_index) {
     if (instr.op == OpCode::End || instr.op == OpCode::Nop) {
       // Treat as nop, only last End actually ends the function, the rest are
       // useful to know when control blocks end
-    } else if(instr.op == OpCode::Drop) {
+    } else if (instr.op == OpCode::Drop) {
       this->pop_stack();
     } else if (instr.op == OpCode::Else) {
       // We have landed in a Else block, which we do not want to execute
@@ -452,6 +453,55 @@ void Runtime::execute(int function_index) {
     } else if (instr.op == OpCode::I32Const || instr.op == OpCode::F32Const ||
                instr.op == OpCode::I64Const || instr.op == OpCode::F64Const) {
       this->push_stack(instr.imms[0]);
+    }
+    /* Memory Instructions */
+    else if (instr.op == OpCode::MemorySize) {
+      Immediate pages;
+      pages.t = ImmediateRepr::I32;
+      pages.v.n32 = this->pages;
+      this->push_stack(pages);
+    } else if (instr.op == OpCode::MemoryGrow) {
+      Immediate grow_by = this->pop_stack();
+
+      // for some reason old page size is returned...
+      Immediate old_pages;
+      old_pages.t = ImmediateRepr::I32;
+      old_pages.v.n32 = this->pages;
+      this->push_stack(old_pages);
+
+      pages += grow_by.v.n32;
+      // TODO: check for failure, like not enough memory.
+      memory.resize(pages * MEMORY_PAGE_SIZE);
+    } else if (instr.op == OpCode::I32Store) {
+
+      if (instr.imms.size() > 2) {
+        assert(false &&
+               "todo: there are 3 immediates to I32Store, special case.");
+      }
+
+      Immediate x = instr.imms[0];
+      Immediate ao = instr.imms[1];
+
+      Immediate c = this->pop_stack();
+      Immediate i = this->pop_stack();
+
+      uint32_t offset = ao.v.n32 + i.v.n32;
+      this->write_memory(x.v.n32, offset, c);
+
+    } else if (instr.op == OpCode::I32Load) {
+
+      if (instr.imms.size() > 2) {
+        assert(false &&
+               "todo: there are 3 immediates to I32Store, special case.");
+      }
+
+      Immediate x = instr.imms[0];
+      Immediate ao = instr.imms[1];
+
+      Immediate i = this->pop_stack();
+
+      uint32_t offset = ao.v.n32 + i.v.n32;
+      this->push_stack(this->read_memory(x.v.n32, offset, ImmediateRepr::I32));
     }
     /* VARIABLE INSTRUCTIONS */
     else if (instr.op == OpCode::LocalGet) {
@@ -551,22 +601,6 @@ void Runtime::execute(int function_index) {
     } else if (instr.op == OpCode::Return) {
       // TODO: read call frame from stack, return to last caller
       break;
-    } else if (instr.op == OpCode::I32Store) {
-
-      if (instr.imms.size() > 2) {
-        assert(false &&
-               "todo: there are 3 immediates to I32Store, special case.");
-      }
-
-      Immediate x = instr.imms[0];
-      Immediate ao = instr.imms[1];
-
-      Immediate c = this->pop_stack();
-      Immediate i = this->pop_stack();
-
-      uint32_t offset = ao.v.n32 + i.v.n32;
-      this->write_memory(x.v.n32, offset, c);
-
     } else {
       std::cout << "Missing opcode handle for " << std::hex << instr.op
                 << std::endl;
