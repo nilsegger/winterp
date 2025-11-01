@@ -3,6 +3,7 @@
 #include "sections.hpp"
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 bool is_valid_heap_type(uint8_t type) {
   return
@@ -45,7 +46,7 @@ const char *section_name(uint8_t section) {
   }
 }
 
-Types read_valtype(const uint8_t* &ptr, const uint8_t* end) {
+Types WasmFile::read_valtype(const uint8_t* &ptr, const uint8_t* end) {
     uint32_t valtype = uleb128_decode<uint32_t>(ptr, end);
 
     if (valtype != 0x7C && valtype != 0x7D && valtype != 0x7E &&
@@ -59,12 +60,12 @@ Types read_valtype(const uint8_t* &ptr, const uint8_t* end) {
   return static_cast<Types>(valtype);
 }
 
-void parse_type_section(wasm &wasm, const std::vector<uint8_t> &data) {
+void WasmFile::parse_type_section(const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_types = uleb128_decode<uint32_t>(ptr, end);
 
-  wasm.type_section.resize(num_types);
+  this->type_section.resize(num_types);
 
   for (int i = 0; i < num_types; i++) {
     const uint8_t type = uleb128_decode<uint32_t>(ptr, end);
@@ -98,27 +99,27 @@ void parse_type_section(wasm &wasm, const std::vector<uint8_t> &data) {
       f.return_value = static_cast<Types>(type);
     }
 
-    wasm.type_section[i] = f;
+    this->type_section[i] = f;
   }
 }
 
-void parse_functions(wasm &wasm, const std::vector<uint8_t> &data) {
+void WasmFile::parse_functions(const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_functions = uleb128_decode<uint32_t>(ptr, end);
 
-  wasm.function_section.resize(num_functions);
+  this->function_section.resize(num_functions);
 
   for (int i = 0; i < num_functions; i++) {
-    wasm.function_section[i] = uleb128_decode<uint32_t>(ptr, end);
+    this->function_section[i] = uleb128_decode<uint32_t>(ptr, end);
   }
 }
 
-void parse_memory(wasm &wasm, const std::vector<uint8_t> &data) {
+void WasmFile::parse_memory(const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_memories = uleb128_decode<uint32_t>(ptr, end);
-  wasm.memory.resize(num_memories);
+  this->memory.resize(num_memories);
 
   for (int i = 0; i < num_memories; i++) {
     Memory m;
@@ -130,16 +131,16 @@ void parse_memory(wasm &wasm, const std::vector<uint8_t> &data) {
       m.maximum = 0;
     }
 
-    wasm.memory[i] = m;
+    this->memory[i] = m;
   }
 }
 
 
-void parse_global(wasm &wasm, const std::vector<uint8_t> &data) {
+void WasmFile::parse_global(const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_globals = uleb128_decode<uint32_t>(ptr, end);
-  wasm.memory.resize(num_globals);
+  this->memory.resize(num_globals);
 
   for (int i = 0; i < num_globals; i++) {
 
@@ -151,11 +152,11 @@ void parse_global(wasm &wasm, const std::vector<uint8_t> &data) {
   }
 }
 
-void parse_exports(wasm &wasm, const std::vector<uint8_t> &data) {
+void WasmFile::parse_exports(const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_exports = uleb128_decode<uint32_t>(ptr, end);
-  wasm.exports.resize(num_exports);
+  this->exports.resize(num_exports);
 
   for (int i = 0; i < num_exports; i++) {
     const uint32_t string_length = uleb128_decode<uint32_t>(ptr, end);
@@ -168,18 +169,17 @@ void parse_exports(wasm &wasm, const std::vector<uint8_t> &data) {
     e.kind = static_cast<ExportKind>(kind);
     e.idx = uleb128_decode<uint32_t>(ptr, end);
 
-    wasm.exports[i] = e;
+    this->exports[i] = e;
   }
 }
 
-void parse_code(wasm &wasm, const std::vector<uint8_t> &data) {
+void WasmFile::parse_code(const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_functions = uleb128_decode<uint32_t>(ptr, end);
-  wasm.codes.resize(num_functions);
+  this->codes.resize(num_functions);
 
   for(int i = 0; i < num_functions; i++) {
-    std::cout << "Working on func " << std::dec << i << std::endl;
     uint32_t func_body_size = uleb128_decode<uint32_t>(ptr, end);
     uint32_t locals = uleb128_decode<uint32_t>(ptr, end);
 
@@ -193,7 +193,67 @@ void parse_code(wasm &wasm, const std::vector<uint8_t> &data) {
 
     read_expr(ptr, end, c.expr);
 
-    wasm.codes[i] = c;
+    this->codes[i] = c;
   }
 
+}
+
+int WasmFile::read(const char* file_name) {
+  
+  std::ifstream file(file_name, std::ios::binary);
+
+  if (!file) {
+    std::cerr << "unable to open " << file_name << std::endl;
+    return 1;
+  }
+
+  std::vector<uint8_t> header(8); // Read Magic and Version
+  file.read((char *)header.data(), header.size());
+  if (file.gcount() != 8) {
+    std::cerr << file_name << "corruped file" << std::endl;
+    return 1;
+  }
+
+  const unsigned char expected_magic[4] = {0x00, 0x61, 0x73, 0x6D};
+  if (!std::equal(header.begin(), header.begin() + 4, expected_magic)) {
+    std::cerr << "is not a valid WebAssembly binary file" << std::endl;
+    return 1;
+  }
+
+  // Section information based on
+  // https://webassembly.github.io/spec/core/binary/modules.html
+
+  uint8_t section_id;
+  uint32_t section_size;
+
+  do {
+    file.read((char *)&section_id, sizeof(section_id));
+    section_size = file_uleb128_u32t(file);
+
+    std::cout << "; section " << section_name(section_id) << std::endl;
+    std::cout << static_cast<int>(section_size) << "\t\t\t; section_size"
+              << std::endl;
+
+    // assumes code files are not larger that working memory...
+    std::vector<uint8_t> section_data(section_size);
+    file.read((char *)section_data.data(), section_size);
+
+    // TODO: lookup table? only more ergonomic...
+    if (section_id == TYPE_SECTION) {
+      parse_type_section(section_data);
+    } else if (section_id == FUNCTION_SECTION) {
+      parse_functions(section_data);
+    } else if (section_id == MEMORY_SECTION) {
+      parse_memory(section_data);
+    } else if (section_id == GLOBAL_SECTION) {
+      parse_global(section_data);
+    } else if (section_id == EXPORT_SECTION) {
+      parse_exports(section_data);
+    } else if (section_id == CODE_SECTION) {
+      parse_code(section_data);
+    }
+
+  } while (file.peek() != EOF);
+
+  return 0;
 }

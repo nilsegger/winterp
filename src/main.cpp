@@ -6,7 +6,9 @@
 #include <iostream>
 #include <vector>
 
+#include "instructions.hpp"
 #include "leb128.hpp"
+#include "runtime.hpp"
 #include "sections.hpp"
 
 int main(int argn, char **argc) {
@@ -16,62 +18,14 @@ int main(int argn, char **argc) {
     return 1;
   }
 
-  std::ifstream file(argc[1], std::ios::binary);
-
-  if (!file) {
-    std::cerr << "unable to open " << argc[1] << std::endl;
+  WasmFile wasm;
+  if(wasm.read(argc[1])) {
     return 1;
   }
 
-  std::array<uint8_t, 8> header{}; // Read Magic and Version
-  file.read((char *)header.data(), header.size());
-  if (file.gcount() != 8) {
-    std::cerr << argc[1] << "corruped file" << std::endl;
-    return 1;
+  for(auto& mem: wasm.memory) {
+    std::cout << "Memory " << std::hex << mem.flag << std::hex << " " << mem.n << " - " << mem.maximum << std::endl;
   }
-
-  const unsigned char expected_magic[4] = {0x00, 0x61, 0x73, 0x6D};
-  if (!std::equal(header.begin(), header.begin() + 4, expected_magic)) {
-    std::cerr << "is not a valid WebAssembly binary file" << std::endl;
-    return 1;
-  }
-
-  // Section information based on
-  // https://webassembly.github.io/spec/core/binary/modules.html
-
-  uint8_t section_id;
-  uint32_t section_size;
-
-  wasm wasm;
-
-  do {
-    file.read((char *)&section_id, sizeof(section_id));
-    section_size = file_uleb128_u32t(file);
-
-    std::cout << "; section " << section_name(section_id) << std::endl;
-    std::cout << static_cast<int>(section_size) << "\t\t\t; section_size"
-              << std::endl;
-
-    // assumes code files are not larger that working memory...
-    std::vector<uint8_t> section_data(section_size);
-    file.read((char *)section_data.data(), section_size);
-
-    // TODO: lookup table? only more ergonomic...
-    if (section_id == TYPE_SECTION) {
-      parse_type_section(wasm, section_data);
-    } else if (section_id == FUNCTION_SECTION) {
-      parse_functions(wasm, section_data);
-    } else if (section_id == MEMORY_SECTION) {
-      parse_memory(wasm, section_data);
-    } else if (section_id == GLOBAL_SECTION) {
-      parse_global(wasm, section_data);
-    } else if (section_id == EXPORT_SECTION) {
-      parse_exports(wasm, section_data);
-    } else if (section_id == CODE_SECTION) {
-      parse_code(wasm, section_data);
-    }
-
-  } while (file.peek() != EOF);
 
   // Summarise Functions
 
@@ -92,6 +46,13 @@ int main(int argn, char **argc) {
       std::cout<<std::endl;
     }
   }
+
+  Runtime runtime(wasm);
+
+  std::string func = "_test_call_add";
+  ImmediateRepr result_repr;
+  Immediate result;
+  runtime.run(func, result_repr, result);
 
   return 0;
 }

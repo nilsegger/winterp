@@ -23,6 +23,10 @@ const uint8_t DATA_SECTION = 11;
 const uint8_t DATA_COUNT_SECTION = 12;
 const uint8_t TAG_SECTION = 13;
 
+// returns the name corresponding to the section id
+const char *section_name(uint8_t section);
+
+// TODO: remove
 typedef uint32_t typeidx;
 
 // https://webassembly.github.io/spec/core/appendix/index-types.html
@@ -91,37 +95,42 @@ struct Code {
 };
 
 // Stores the data of the varios sections
-struct wasm {
-  std::vector<FunctionType> type_section;
-  std::vector<typeidx> function_section;
-  std::vector<Memory> memory;
-  std::vector<Export> exports;
-  std::vector<Code> codes;
+struct WasmFile {
+
+  private:
+
+    // Reads in a valtype as defined in
+    // https://webassembly.github.io/spec/core/binary/types.html#value-types
+    Types read_valtype(const uint8_t* &ptr, const uint8_t* end);
+
+    // Parses the Type Section and stores the resulting types in wasm.type_section
+    void parse_type_section(const std::vector<uint8_t> &data);
+
+    // Stores the resulting function indices in wasm.function_section
+    void parse_functions(const std::vector<uint8_t> &data);
+
+    // Stores the list of memories into wasm.memory
+    void parse_memory(const std::vector<uint8_t> &data);
+
+    // Stores the list of globals into wasm.global
+    void parse_global(const std::vector<uint8_t> &data);
+
+    // Stores the list of exports into wasm.exports
+    void parse_exports(const std::vector<uint8_t> &data);
+
+    // Stores the list of codes into wasm.codes
+    void parse_code(const std::vector<uint8_t> &data);
+
+  public:
+    std::vector<FunctionType> type_section;
+    std::vector<typeidx> function_section;
+    std::vector<Memory> memory;
+    std::vector<Export> exports;
+    std::vector<Code> codes;
+
+    int read(const char* file);
 };
 
-// returns the name corresponding to the section id
-const char *section_name(uint8_t section);
 
-// Reads in a valtype as defined in
-// https://webassembly.github.io/spec/core/binary/types.html#value-types
-Types read_valtype(const uint8_t* &ptr, const uint8_t* end);
-
-// Parses the Type Section and stores the resulting types in wasm.type_section
-void parse_type_section(wasm &wasm, const std::vector<uint8_t> &data);
-
-// Stores the resulting function indices in wasm.function_section
-void parse_functions(wasm &wasm, const std::vector<uint8_t> &data);
-
-// Stores the list of memories into wasm.memory
-void parse_memory(wasm &wasm, const std::vector<uint8_t> &data);
-
-// Stores the list of globals into wasm.global
-void parse_global(wasm &wasm, const std::vector<uint8_t> &data);
-
-// Stores the list of exports into wasm.exports
-void parse_exports(wasm &wasm, const std::vector<uint8_t> &data);
-
-// Stores the list of codes into wasm.codes
-void parse_code(wasm &wasm, const std::vector<uint8_t> &data);
 
 #endif // SECTIONS_HPP

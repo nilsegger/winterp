@@ -10,6 +10,7 @@ set(SOURCES
     src/sections.cpp
     src/leb128.cpp
     src/instructions.cpp
+    src/runtime.cpp
 )
 
 add_executable(
@@ -38,6 +39,7 @@ enable_testing()
 add_executable(
     ${PROJECT_NAME}_test
     tests/leb128.cpp
+    tests/test_02.cpp
     ${SOURCES}
  )
 
