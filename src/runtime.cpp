@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 
@@ -90,19 +91,20 @@ Immediate Runtime::read_memory(const uint32_t &mem_index,
 
 // Moves the program counter, until the next else / end is found, ignoring
 // nested conditions
+// The program counter will be left at the first instruction to be executed.
 void skip_block(const Code &c, int &pc) {
 
   // Assumes skip_block was called directly while pc is still one the if
   pc++;
-
 
   int conditional_nesting = 0;
 
   while ((c.expr[pc].op != OpCode::End && c.expr[pc].op != OpCode::Else) ||
          conditional_nesting > 0) {
 
-    std::cout << std::dec << "PC " << pc << " : " << std::hex << c.expr[pc].op  << std::endl;
- 
+    std::cout << std::dec << "PC " << pc << " : " << std::hex << c.expr[pc].op
+              << std::endl;
+
     uint8_t op = static_cast<uint8_t>(c.expr[pc].op);
     if (0x02 <= op && op <= 0x04) {
       // Not inclusive 0x05, because else does not continue the nesting
@@ -119,6 +121,8 @@ void skip_block(const Code &c, int &pc) {
 
     pc++;
   }
+
+  pc++;
 }
 
 void Runtime::execute(int function_index) {
@@ -165,15 +169,24 @@ void Runtime::execute(int function_index) {
   // program counter, which instruction were currently running
   int pc = 0;
   while (pc < block.expr.size()) {
+   
     Instr &instr = block.expr[pc];
 
-    std::cout << "Read OP " << std::hex << instr.op << std::dec << std::endl; 
+    std::cout << "Read OP " << std::hex << instr.op << std::dec << std::endl;
 
     // Instructions implemented based on description here
     // https://webassembly.github.io/spec/core/exec/instructions.html
 
-    if(instr.op == OpCode::End) {
-      // Treat as nop, only last End actually ends the function, the rest are useful to know when control blocks end
+    if (instr.op == OpCode::End) {
+      // Treat as nop, only last End actually ends the function, the rest are
+      // useful to know when control blocks end
+    } else if(instr.op == OpCode::Else) {
+       // We have landed in a Else block, which we do not want to execute 
+       // We know that we can skip this block, because if the if block would have taken the else route,
+       // skip_block would have stoped at the first op to actually execute after the else
+       std::cout << "Skipping else block!" << std::endl;
+       skip_block(block, pc);
+       continue;
     } else if (instr.op == OpCode::Call) {
       execute(instr.imms[0].v.n32);
     } else if (instr.op == OpCode::I32Const) {
@@ -211,8 +224,9 @@ void Runtime::execute(int function_index) {
       }
     }
     /* NUMERIC INSTRUCTIONS */
-    else if (instr.op == OpCode::I32Add || instr.op == OpCode::I32Mul ||
-             instr.op == OpCode::GT_S) {
+    else if (instr.op == OpCode::I32Add || instr.op == OpCode::I32Sub ||
+             instr.op == OpCode::I32Mul || instr.op == OpCode::GT_S ||
+             instr.op == OpCode::LT_S) {
       Immediate b = this->pop_stack();
       Immediate a = this->pop_stack();
 
@@ -223,9 +237,13 @@ void Runtime::execute(int function_index) {
         c.v.n32 = a.v.n32 + b.v.n32;
       } else if (instr.op == OpCode::I32Mul) {
         c.v.n32 = a.v.n32 * b.v.n32;
+      } else if (instr.op == OpCode::I32Sub) {
+        c.v.n32 = a.v.n32 - b.v.n32;
       } else if (instr.op == OpCode::GT_S) {
         // TODO: signed?
-        c.v.n32 = a.v.n32 > b.v.n32;
+        c.v.n32 = static_cast<int32_t>(a.v.n32) > static_cast<int32_t>(b.v.n32);
+      } else if (instr.op == OpCode::LT_S) {
+        c.v.n32 = static_cast<int32_t>(a.v.n32) < static_cast<int32_t>(b.v.n32);
       } else {
         assert(false && "todo");
       }
@@ -247,8 +265,7 @@ void Runtime::execute(int function_index) {
     } else if (instr.op == OpCode::Return) {
       // TODO: read call frame from stack, return to last caller
       break;
-    }
-    else if (instr.op == OpCode::I32Store) {
+    } else if (instr.op == OpCode::I32Store) {
 
       if (instr.imms.size() > 2) {
         assert(false &&

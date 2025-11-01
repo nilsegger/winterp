@@ -43,6 +43,48 @@ T uleb128_decode(const uint8_t* &start, const uint8_t* end) {
   return uleb128_from_blocks<T>(blocks);
 }
 
+template<typename T>
+T leb128_from_blocks(const std::vector<uint8_t>& blocks) {
+  T result = 0;
+
+  int shift = 0;
+  for (int i = 0; i < blocks.size(); i++) {
+    // set msb to always be 0 such that it doesnt contribute, then shift
+    uint8_t block = blocks[i] & 0x7F;
+    
+    result |= (block << shift);
+    shift += 7;
+  }
+
+  // Ones complement + negating all bits
+  if((shift < sizeof(result) * 8) && ((blocks.back() & 0x40) != 0)) {
+    result |= (~0 << shift);
+  }
+
+  return result;
+}
+
+template<typename T>
+T leb128_decode(const uint8_t* &start, const uint8_t* end) {
+
+  std::vector<uint8_t> blocks;
+  uint8_t block;
+
+  while(start != end) {
+
+    blocks.push_back(*start);
+
+    bool is_end = ((*start) & 0x80) == 0;
+    start++; // Increase before exiting, such that next call to this function starts at the next block
+
+    if(is_end) {
+      break;
+    }
+  }
+
+  return leb128_from_blocks<T>(blocks);
+}
+
 
 // Reads a ULEB128 integer directly from file stream
 // Converts it to a uint32_t

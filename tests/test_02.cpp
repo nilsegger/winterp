@@ -27,6 +27,7 @@ TEST_F(Test02, func_name) {                                            \
   Immediate result = runtime.read_memory(2, 0, ImmediateRepr::I32);   \
                                                                        \
   EXPECT_EQ(result.v.n32, expected_value);                                           \
+  EXPECT_EQ(static_cast<int32_t>(result.v.n32), expected_value);                                           \
 }
 
 
@@ -36,5 +37,5 @@ WASM_I32_TEST(_test_call_square, 49);
 WASM_I32_TEST(_test_call_multiple, 25);
 WASM_I32_TEST(_test_return_early_true, 100);
 WASM_I32_TEST(_test_return_early_false, 200);
-// WASM_I32_TEST(_test_abs_negative, 25);
-// WASM_I32_TEST(_test_abs_positive, 25);
+WASM_I32_TEST(_test_abs_negative, 42);
+WASM_I32_TEST(_test_abs_positive, 42);

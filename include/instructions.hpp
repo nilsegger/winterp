@@ -18,8 +18,10 @@ enum OpCode {
   F32Const = 0x43,
   F64Const = 0x44,
   GT_S = 0x4A,
+  LT_S = 0x48,
 
   I32Add = 0x6a,
+  I32Sub = 0x6b,
   I32Mul = 0x6C,
 
   F32Add = 0x92,

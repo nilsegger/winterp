@@ -21,7 +21,6 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   switch (op) {
     // No immediates
   case OpCode::Unreachable:
-  case OpCode::GT_S:
   case OpCode::Else:
   case OpCode::Return:
   case OpCode::Nop:
@@ -78,9 +77,10 @@ Immediate parse_immediate(const ImmediateRepr repr, const uint8_t *&start,
   Immediate imm;
   imm.t = repr;
   if (repr == ImmediateRepr::I32) {
-    imm.v.n32 = uleb128_decode<uint32_t>(start, end);
+    // TODO: all immediates are currently assumed to be signed...
+    imm.v.n32 = leb128_decode<int32_t>(start, end);
   } else if (repr == ImmediateRepr::I64) {
-    imm.v.n64 = uleb128_decode<uint64_t>(start, end);
+    imm.v.n64 = leb128_decode<int64_t>(start, end);
   } else if (repr == ImmediateRepr::F32) {
     imm.v.p32 = read_float(start, end);
   } else if (repr == ImmediateRepr::F64) {
