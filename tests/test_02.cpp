@@ -18,7 +18,6 @@ protected:
 
 WasmFile Test02::wasm;
 
-// Define macro for templated test generation
 #define WASM_I32_TEST(func_name, expected_value)                       \
 TEST_F(Test02, func_name) {                                            \
   std::string func = #func_name;                                       \
@@ -30,11 +29,12 @@ TEST_F(Test02, func_name) {                                            \
   EXPECT_EQ(result.v.n32, expected_value);                                           \
 }
 
+
 WASM_I32_TEST(_test_call_add, 15);
 WASM_I32_TEST(_test_call_composition, 35);
 WASM_I32_TEST(_test_call_square, 49);
 WASM_I32_TEST(_test_call_multiple, 25);
-// WASM_I32_TEST(_test_return_early_true, 25);
-// WASM_I32_TEST(_test_return_early_false, 25);
+WASM_I32_TEST(_test_return_early_true, 100);
+WASM_I32_TEST(_test_return_early_false, 200);
 // WASM_I32_TEST(_test_abs_negative, 25);
 // WASM_I32_TEST(_test_abs_positive, 25);

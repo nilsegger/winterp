@@ -11,7 +11,7 @@ Runtime::Runtime(struct WasmFile &wasm) : wasm(wasm) {
 
 void Runtime::push_stack(Immediate &imm) {
   assert(imm.t != ImmediateRepr::Uninitialised);
- this->stack.push_back(imm);
+  this->stack.push_back(imm);
 }
 
 Immediate Runtime::pop_stack() {
@@ -88,6 +88,39 @@ Immediate Runtime::read_memory(const uint32_t &mem_index,
   return read;
 }
 
+// Moves the program counter, until the next else / end is found, ignoring
+// nested conditions
+void skip_block(const Code &c, int &pc) {
+
+  // Assumes skip_block was called directly while pc is still one the if
+  pc++;
+
+
+  int conditional_nesting = 0;
+
+  while ((c.expr[pc].op != OpCode::End && c.expr[pc].op != OpCode::Else) ||
+         conditional_nesting > 0) {
+
+    std::cout << std::dec << "PC " << pc << " : " << std::hex << c.expr[pc].op  << std::endl;
+ 
+    uint8_t op = static_cast<uint8_t>(c.expr[pc].op);
+    if (0x02 <= op && op <= 0x04) {
+      // Not inclusive 0x05, because else does not continue the nesting
+      conditional_nesting++;
+    }
+
+    if (c.expr[pc].op == OpCode::Else) {
+      assert(false && "todo: should this also conditiona_nesting--?");
+    }
+
+    if (c.expr[pc].op == OpCode::End) {
+      conditional_nesting--;
+    }
+
+    pc++;
+  }
+}
+
 void Runtime::execute(int function_index) {
 
   std::cout << "Function " << std::dec << function_index << " called"
@@ -95,11 +128,15 @@ void Runtime::execute(int function_index) {
   std::cout << "Stack size " << this->stack.size() << std::endl;
 
   // Again, assumes all indices are valid...
-  Code &c = wasm.codes[function_index];
+  Code &block = wasm.codes[function_index];
 
-  std::cout << "Function has " << c.locals.size() << " locals." << std::endl;
+  std::cout << "Function has " << block.locals.size() << " locals."
+            << std::endl;
 
   typeidx function_signature_index = wasm.function_section[function_index];
+
+  std::cout << "Function signature index is " << function_signature_index
+            << std::endl;
 
   // important for stack information
   FunctionType &signature = wasm.type_section[function_signature_index];
@@ -107,20 +144,37 @@ void Runtime::execute(int function_index) {
   std::cout << "Function has " << signature.params.size() << " params"
             << std::endl;
 
-  /* TODO: pop stack, what about locals? */
+  /* Pop Stack based on signature params */
   std::vector<Immediate> params(signature.params.size());
   for (int i = 0; i < signature.params.size(); i++) {
     params[i] = this->pop_stack();
   }
 
-  /* Emulate Instructions */
+  /* Prepare Locals */
+  std::vector<Immediate> locals;
+  for (auto &local : block.locals) {
+    for (int j = 0; j < local.count; j++) {
+      Immediate l;
+      l.t = local.type;
+      l.v.n64 = 0;
+      locals.push_back(l);
+    }
+  }
 
-  for (int i = 0; i < c.expr.size(); i++) {
-    Instr &instr = c.expr[i];
+  /* Emulate Instructions */
+  // program counter, which instruction were currently running
+  int pc = 0;
+  while (pc < block.expr.size()) {
+    Instr &instr = block.expr[pc];
+
+    std::cout << "Read OP " << std::hex << instr.op << std::dec << std::endl; 
 
     // Instructions implemented based on description here
     // https://webassembly.github.io/spec/core/exec/instructions.html
-    if (instr.op == OpCode::Call) {
+
+    if(instr.op == OpCode::End) {
+      // Treat as nop, only last End actually ends the function, the rest are useful to know when control blocks end
+    } else if (instr.op == OpCode::Call) {
       execute(instr.imms[0].v.n32);
     } else if (instr.op == OpCode::I32Const) {
       this->push_stack(instr.imms[0]);
@@ -136,18 +190,29 @@ void Runtime::execute(int function_index) {
       if (index < params.size()) {
         this->push_stack(params[index]);
       } else {
-        assert(false && "working on this!");
-        // index = index - params.size();
-        // this->push_stack(c.locals[index]);
+        index = index - params.size();
+        assert(index < locals.size() && "LocalGet invalid local index!");
+        Immediate v = locals[index];
+        std::cout << "read local index " << index << " with value " << v.v.n32
+                  << std::endl;
+        this->push_stack(locals[index]);
       }
 
     } else if (instr.op == OpCode::LocalSet) {
       Immediate val = this->pop_stack();
-      std::cout << val.v.n32 << " value to put at " << instr.imms[0].v.n32
-                << std::endl;
+
+      uint32_t index = instr.imms[0].v.n32;
+      if (index < params.size()) {
+        params[index] = val;
+      } else {
+        index = index - params.size();
+        assert(index < locals.size() && " LocalSet invalid local index!");
+        locals[index] = val;
+      }
     }
     /* NUMERIC INSTRUCTIONS */
-    else if (instr.op == OpCode::I32Add || instr.op == OpCode::I32Mul) {
+    else if (instr.op == OpCode::I32Add || instr.op == OpCode::I32Mul ||
+             instr.op == OpCode::GT_S) {
       Immediate b = this->pop_stack();
       Immediate a = this->pop_stack();
 
@@ -157,12 +222,33 @@ void Runtime::execute(int function_index) {
       if (instr.op == OpCode::I32Add) {
         c.v.n32 = a.v.n32 + b.v.n32;
       } else if (instr.op == OpCode::I32Mul) {
-        std::cout << a.v.n32 << " * " << b.v.n32 << std::endl;
         c.v.n32 = a.v.n32 * b.v.n32;
+      } else if (instr.op == OpCode::GT_S) {
+        // TODO: signed?
+        c.v.n32 = a.v.n32 > b.v.n32;
+      } else {
+        assert(false && "todo");
       }
 
       this->push_stack(c);
-    } else if (instr.op == OpCode::I32Store) {
+    } else if (instr.op == OpCode::If) {
+      Immediate c = this->pop_stack();
+      if (c.v.n32) {
+        // execute first block
+      } else {
+        std::cout << "skipping !" << std::endl;
+        // execute second block
+        // find Else statement or end statement, ignore else/end statements of
+        // nested ifs!
+        skip_block(block, pc);
+        // dont include pc++ below, this would skip the next meaningfull op
+        continue;
+      }
+    } else if (instr.op == OpCode::Return) {
+      // TODO: read call frame from stack, return to last caller
+      break;
+    }
+    else if (instr.op == OpCode::I32Store) {
 
       if (instr.imms.size() > 2) {
         assert(false &&
@@ -183,6 +269,8 @@ void Runtime::execute(int function_index) {
                 << std::endl;
       assert(false && "todo: implement new opcode emulation");
     }
+
+    pc++;
   }
 }
 

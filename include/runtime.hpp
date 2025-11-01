@@ -18,9 +18,6 @@ class Runtime {
     std::vector<Immediate> stack;
     std::vector<uint8_t> memory;
 
-    // Pushes the stack by imm
-    void push_stack(Immediate& imm);
-
     // Returns and removes the last value on the stack
     Immediate pop_stack();
 
@@ -42,6 +39,11 @@ class Runtime {
 
     // Reads from memory at offset, currently mem_index is ignored due to missing store impl.
     Immediate read_memory(const uint32_t& mem_index, const uint32_t& offset, const ImmediateRepr repr);
+
+    
+    // Pushes the stack by imm
+    void push_stack(Immediate& imm);
+
 };
 
 

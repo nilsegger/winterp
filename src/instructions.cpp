@@ -162,10 +162,10 @@ void read_expr(const uint8_t *&ptr, const uint8_t *end,
 
     if (instr.op == OpCode::End) {
       conditional_nesting--;
-    } else {
-      // End OpCodes do not add any execution value
-      result.push_back(instr);
-    }
+    } 
+
+    // Push all instructions, even ending, to know when control blocks end
+    result.push_back(instr);
 
     instr = parse_instruction(ptr, end);
   }
