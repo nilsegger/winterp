@@ -73,5 +73,25 @@ int main(int argn, char **argc) {
 
   } while (file.peek() != EOF);
 
+  // Summarise Functions
+
+  for(auto& exp : wasm.exports) {
+
+    if(exp.kind != ExportKind::func) {
+      continue;
+    }
+    
+    std::cout << exp.name << std::endl;
+    Code& f = wasm.codes[exp.idx];
+
+    for(auto& instr: f.expr) {
+      std::cout << std::hex << instr.op << "\t\t";
+      for(auto& imm: instr.imms) {
+        std::cout << std::hex << imm.n32 << ",\t";
+      }
+      std::cout<<std::endl;
+    }
+  }
+
   return 0;
 }

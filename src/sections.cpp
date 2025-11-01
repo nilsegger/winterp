@@ -192,6 +192,8 @@ void parse_code(wasm &wasm, const std::vector<uint8_t> &data) {
     }
 
     read_expr(ptr, end, c.expr);
+
+    wasm.codes[i] = c;
   }
 
 }

@@ -108,8 +108,6 @@ Instr parse_instruction(const uint8_t *&start, const uint8_t *end) {
   Instr instr;
   instr.op = static_cast<OpCode>(read_byte(start, end));
 
-  std::cout << "Read OpCode " << std::hex << instr.op << std::endl;
-
   if (instr.op == OpCode::End) {
     return instr;
   }
