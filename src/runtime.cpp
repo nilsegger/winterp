@@ -434,9 +434,11 @@ void Runtime::execute(int function_index) {
     // Instructions implemented based on description here
     // https://webassembly.github.io/spec/core/exec/instructions.html
 
-    if (instr.op == OpCode::End) {
+    if (instr.op == OpCode::End || instr.op == OpCode::Nop) {
       // Treat as nop, only last End actually ends the function, the rest are
       // useful to know when control blocks end
+    } else if(instr.op == OpCode::Drop) {
+      this->pop_stack();
     } else if (instr.op == OpCode::Else) {
       // We have landed in a Else block, which we do not want to execute
       // We know that we can skip this block, because if the if block would have

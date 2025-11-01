@@ -99,10 +99,11 @@ WASM_I32_TEST(_test_promote_f32_to_f64, 0);
 WASM_F32_TEST(_test_demote_f64_to_f32, 3.5);
 WASM_I32_TEST(_test_reinterpret_f32_to_i32, 0x3F800000);
 WASM_I32_TEST(_test_reinterpret_i32_to_f32, 0x40400000);
-// WASM_I32_TEST(_test_drop_simple, 0);
-// WASM_I32_TEST(_test_drop_multiple, 0);
-// WASM_I32_TEST(_test_nop, 0);
-// WASM_I32_TEST(_test_drop_in_computation, 0);
+
+WASM_I32_TEST(_test_drop_simple, 42);
+WASM_I32_TEST(_test_drop_multiple, 100);
+WASM_I32_TEST(_test_nop, 42);
+WASM_I32_TEST(_test_drop_in_computation, 50);
 // WASM_I32_TEST(_test_memory_size, 0);
 // WASM_I32_TEST(_test_memory_grow, 0);
 // WASM_I32_TEST(_test_memory_size_after_grow, 0);
