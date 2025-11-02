@@ -63,7 +63,7 @@ It currently does not support
   ### Expressions
   An expression is a list of instructions.
   For this project, I decided to represent Instructions with a struct.  
-  ```
+  ```c++
   enum OpCode;
   struct Immediate;
 
@@ -86,27 +86,29 @@ It currently does not support
   The runtime starts with initialising the globals, locals, memory and function table.
   All according to the parsed `WasmFile`.
 
-  Then we enter execution when `Runtime.run(std::string &function)` get called. 
+  Then we enter execution when `Runtime.run(std::string &function)` get called.
+  
   This looks up the function name in the exports and finds the corresponding function_index.
   There is no Abstract Syntax Tree or Control Flow Graph, the runtime runs directly on the list of instructions.
   The most important functions in `include/runtime.hpp` are
-    - ```void Runtime::execute_block(const std::vector<Instr> &block, std::vector<Immediate> &params, std::vector<Immediate> &locals);```
-      Responsible for stepping through the instructions step by step. Calls the functions below to control the program counter.
-    - ```void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc);```
-      Skips through a control block until the matching `else` or `end` is found.
-    - ```void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label);```
-      Similar to skip_control_block, but dependent on `block` or `loop` will go to the start or end of a label.
-      For `block` it escapes the block while for a `loop` it will go to its first instruction inside the loop.
-    - `void push_stack(Immediate imm);`, `Immediate pop_stack();`
-      Handle stack operations while checking for missing types and asserting that there is an element when popping.
-    - ```void Runtime::write_memory(const uint32_t &mem_index, const uint32_t &offset, const Immediate &imm);```
-      Writes to memory, currently ignores memory index, but this wouldnt be a big change to support.
-    - ```Immediate Runtime::read_memory(const uint32_t &mem_index, const uint32_t &offset, const ImmediateRepr repr);```
-      Reads from memory, again, ignoring mem_index.
+  
+  - `void Runtime::execute_block(...);`
+    Responsible for stepping through the instructions step by step. Calls the functions below to control the program counter.
+  - `void Runtime::skip_control_block(...);`
+    Skips through a control block until the matching `else` or `end` is found.
+  - `void Runtime::branch_block(...);`
+    Similar to skip_control_block, but dependent on `block` or `loop` will go to the start or end of a label.
+    For `block` it escapes the block while for a `loop` it will go to its first instruction inside the loop.
+  - `void push_stack(Immediate imm);`, `Immediate pop_stack();`
+    Handle stack operations while checking for missing types and asserting that there is an element when popping.
+  - `void Runtime::write_memory(...);`
+    Writes to memory, currently ignores memory index, but this wouldnt be a big change to support.
+  - `Immediate Runtime::read_memory(...);`
+    Reads from memory, again, ignoring mem_index.
 
   What made the runtime quite a bit simpler was the data structure of Immediates.
   An immediate would be stored like such
-  ```
+  ```c++
     enum ImmediateRepr {
       Byte = 0x01,
       I32 = 0x7F,
@@ -130,7 +132,7 @@ It currently does not support
   This made it quite easy to handle the stack and more explicit when loading and storing values from memory.
   Due to the stack push and pop functions always asserting Immediates having a valid type, I could always be sure that there are no unknown values floating around. 
   For most OpCodes, working with immediates now looks like this
-  ```
+  ```c++
     Immediate result;
     result.t = ImmediateRepr::I32;
     if (op == OpCode::I32Add) {
@@ -141,21 +143,17 @@ It currently does not support
   ```
 
 ## Challenges
-  - Imports
-    Due to running out of time, my interpreter only supports a single import.
+  - Imports: Due to running out of time, my interpreter only supports a single import.
     For more imports, I would need to map module and field name to their counterpart WASI function.
-  - Parsing the file
-    In the beginning I believed parsing a file wouldnt take me as long as it ended up doing, so I was unable to get started on the runtime before saturday.  
-  - Getting other projects to run
-    I tried to find WebAssembly projects which my interpreter would be able to run.
-    I alread knew from the beginning that this would be impossible, since I only support `fd_write`.
-    But I'm fairly confident that easy things like this [https://wasmbyexample.dev/examples/hello-world/hello-world.rust.en-us.html](rust example) could be possible.
-    For other things like this [https://www.assemblyscript.org/examples/mandelbrot.html](mandelbrot module) I would need to add the missing imports for `Math.log` and `Math.log2`. 
+  - Parsing the file: In the beginning I believed parsing a file wouldnt take me as long as it ended up doing, so I was unable to get started on the runtime before saturday.  
+  - Getting other projects to run: I tried to find WebAssembly projects which my interpreter would be able to run.
+    I alread knew from the beginning that this would be impossible, since I only support `fd_write` and most projects are meant to have a GUI.
+    But I'm fairly confident that easy things like this [rust example](https://wasmbyexample.dev/examples/hello-world/hello-world.rust.en-us.html) could be possible.
+    For other things like this [mandelbrot module](https://www.assemblyscript.org/examples/mandelbrot.html) I would need to add the missing imports for `Math.log` and `Math.log2`. 
     This should be fairly straightforward by adapting the `execute_import` function. 
 
 ### What I would do differently or improve
-  - Gracious error handling
-    The Code currently simply crashes in debug mode when invalid executions happen.
+  - Gracious error handling: The Code currently simply crashes in debug mode when invalid executions happen.
     There would need to be a refactor to introduce error code or exceptions. 
     I personally would would choose error codes and pass these around, this would mean that any current return value would need to be added as a parameter reference. 
   - Implement a correct Store structure
