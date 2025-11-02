@@ -22,6 +22,9 @@ private:
   // Array memory
   std::vector<uint8_t> memory;
 
+  // The Data Segments, directly copied from WasmFile
+  std::vector<DataSegment> data;
+
   struct GlobalInstance {
     bool mut;
     Immediate value;

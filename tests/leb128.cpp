@@ -3,6 +3,17 @@
 
 #include "leb128.hpp"
 
+TEST(LEB128, DecodingUnsignedZero) {
+
+  // Example from https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128
+  std::vector<uint8_t> data = {0x00};
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+
+  uint32_t result = uleb128_decode<uint32_t>(ptr, end);
+  EXPECT_EQ(result, 0);
+}
+
 TEST(LEB128, DecodingUnsigned) {
 
   // Example from https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128

@@ -6,10 +6,12 @@
 
 #include "bits.hpp"
 #include "instructions.hpp"
+#include "sections.hpp"
 #include "runtime.hpp"
 
 Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
   memory.resize(MEMORY_PAGE_SIZE);
+  std::fill(memory.begin(), memory.end(), 0);
   pages = 1;
 
   // Reserve memory of table, also verify only supported reftype is used
@@ -55,6 +57,9 @@ Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
     instance.value = this->pop_stack();
     this->globals.push_back(instance);
   }
+
+  // Setup data segments
+  this->data = wasm.data;
 }
 
 void Runtime::push_stack(const Immediate &imm) {
@@ -128,20 +133,24 @@ Immediate Runtime::read_memory(const uint32_t &mem_index,
   case ImmediateRepr::Uninitialised:
     assert(false && "Invalid repr found.");
     break;
+  case ImmediateRepr::Byte:
+    assert(offset + 1 <= this->memory.size() && "invalid memory access");
+    read.v.n32 = static_cast<uint32_t>(this->memory[offset]);
+    break;
   case ImmediateRepr::I32:
-    assert(offset + 4 < this->memory.size() && "invalid memory access");
+    assert(offset + 4 <= this->memory.size() && "invalid memory access");
     std::memcpy(&read.v.n32, &this->memory[offset], 4);
     break;
   case ImmediateRepr::F32:
-    assert(offset + 4 < this->memory.size() && "invalid memory access");
+    assert(offset + 4 <= this->memory.size() && "invalid memory access");
     std::memcpy(&read.v.p32, &this->memory[offset], 4);
     break;
   case ImmediateRepr::I64:
-    assert(offset + 8 < this->memory.size() && "invalid memory access");
+    assert(offset + 8 <= this->memory.size() && "invalid memory access");
     std::memcpy(&read.v.n64, &this->memory[offset], 8);
     break;
   case ImmediateRepr::F64:
-    assert(offset + 8 < this->memory.size() && "invalid memory access");
+    assert(offset + 8 <= this->memory.size() && "invalid memory access");
     std::memcpy(&read.v.p64, &this->memory[offset], 8);
     break;
   default:
@@ -305,7 +314,8 @@ Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
   } else if (op == OpCode::I32shl) {
     result.v.n32 = a.v.n32 << b.v.n32;
   } else if (op == OpCode::I32shrs) {
-    result.v.n32 = static_cast<int32_t>(a.v.n32) >> static_cast<int32_t>(b.v.n32);
+    result.v.n32 =
+        static_cast<int32_t>(a.v.n32) >> static_cast<int32_t>(b.v.n32);
   } else if (op == OpCode::I32shru) {
     result.v.n32 = a.v.n32 >> b.v.n32;
   } else if (op == OpCode::I32rotl) {
@@ -314,8 +324,7 @@ Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
   } else if (op == OpCode::I32rotr) {
     uint32_t shift = b.v.n32 & 0x3F;
     result.v.n32 = (a.v.n32 >> shift) | (a.v.n32 << (32 - shift));
-  } 
-  else {
+  } else {
     assert(false && "todo: invalid binop for i32");
   }
 
@@ -398,7 +407,8 @@ Immediate Runtime::handle_numeric_binop_i64(const OpCode &op,
   } else if (op == OpCode::I64shl) {
     result.v.n64 = a.v.n64 << b.v.n64;
   } else if (op == OpCode::I64shrs) {
-    result.v.n64 = static_cast<uint64_t>(a.v.n64) >> static_cast<uint64_t>(b.v.n64);
+    result.v.n64 =
+        static_cast<uint64_t>(a.v.n64) >> static_cast<uint64_t>(b.v.n64);
   } else if (op == OpCode::I64shru) {
     result.v.n64 = a.v.n64 >> b.v.n64;
   } else if (op == OpCode::I64rotl) {
@@ -752,30 +762,30 @@ Immediate Runtime::handle_load(const OpCode &op, const uint32_t &mem_index,
   return result;
 }
 
-
-void Runtime::handle_store(const OpCode &op, const uint32_t& mem_index, const uint32_t& offset, const Immediate& value) {
+void Runtime::handle_store(const OpCode &op, const uint32_t &mem_index,
+                           const uint32_t &offset, const Immediate &value) {
 
   uint8_t op_byte = static_cast<uint8_t>(op);
 
-  if(op_byte >= 0x36 && op_byte <= 0x39) {
-      this->write_memory(mem_index, offset, value);
-  } 
+  if (op_byte >= 0x36 && op_byte <= 0x39) {
+    this->write_memory(mem_index, offset, value);
+  }
   // TODO: bounds checking...
-  else if(op == I32Store8) {
+  else if (op == I32Store8) {
     uint8_t byte = static_cast<uint8_t>(value.v.n32 & 0xFF);
     memory[offset] = byte;
-  } else if(op == I32Store16) {
-      std::memcpy(&this->memory[offset], &value.v.n32, 2);
-  } else if(op == I64Store8) {
+  } else if (op == I32Store16) {
+    std::memcpy(&this->memory[offset], &value.v.n32, 2);
+  } else if (op == I64Store8) {
     uint8_t byte = static_cast<uint8_t>(value.v.n64 & 0xFF);
     memory[offset] = byte;
-  } else if(op == I64Store16) {
-      std::memcpy(&this->memory[offset], &value.v.n64, 2);
-  } else if(op == I64Store32) {
-      std::memcpy(&this->memory[offset], &value.v.n64, 4);
+  } else if (op == I64Store16) {
+    std::memcpy(&this->memory[offset], &value.v.n64, 2);
+  } else if (op == I64Store32) {
+    std::memcpy(&this->memory[offset], &value.v.n64, 4);
   } else {
     assert(false && "invalid op!");
-  }   
+  }
 }
 
 Immediate Runtime::reinterp(const Immediate &a, const ImmediateRepr from,
@@ -801,7 +811,8 @@ void Runtime::execute_block(const std::vector<Instr> &block,
 
     uint8_t op_byte = static_cast<uint8_t>(instr.op);
 
-    bool is_i32_numeric_unop = op_byte == 0x45 || (op_byte >= 0x67 && op_byte <= 0x69);
+    bool is_i32_numeric_unop =
+        op_byte == 0x45 || (op_byte >= 0x67 && op_byte <= 0x69);
 
     bool is_i32_numeric_binop = (op_byte >= 0x6A && op_byte <= 0x78) ||
                                 (op_byte >= 0x46 && op_byte <= 0x4F);
@@ -833,7 +844,7 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       // useful to know when control blocks end
     } else if (instr.op == OpCode::Drop) {
       this->pop_stack();
-    } else if(instr.op == OpCode::Select) {
+    } else if (instr.op == OpCode::Select) {
       Immediate c = this->pop_stack();
       Immediate val2 = this->pop_stack();
       Immediate val1 = this->pop_stack();
@@ -892,7 +903,82 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       pages += grow_by.v.n32;
       // TODO: check for failure, like not enough memory.
       memory.resize(pages * MEMORY_PAGE_SIZE);
-    } else if (op_byte >= 0x36 && op_byte <= 0x3E) {
+    } else if (instr.op == MemoryFill) {
+      Immediate n = this->pop_stack();
+      Immediate val = this->pop_stack();
+      Immediate i = this->pop_stack();
+
+      // TODO: validate memory overflow
+
+      OpCode i32store8 = OpCode::I32Store8;
+      Immediate memidx = instr.imms[0];
+
+      for (int j = 0; j < n.v.n32; j++) {
+        uint32_t offset = i.v.n32 + j;
+        handle_store(i32store8, memidx.v.n32, offset, val);
+      }
+    } else if (instr.op == MemoryCopy) {
+
+      Immediate n = this->pop_stack();
+      Immediate i2 = this->pop_stack();
+      Immediate i1 = this->pop_stack();
+
+      OpCode i32Load8u = OpCode::I32Load8U;
+      OpCode i32store8 = OpCode::I32Store8;
+
+      for (int j = 0; j < n.v.n32; j++) {
+        if (i1.v.n32 <= i2.v.n32) {
+          uint32_t load_offset = i2.v.n32 + j;
+          Immediate imm =
+              handle_load(i32Load8u, instr.imms[1].v.n32, load_offset);
+
+          uint32_t store_offset = i1.v.n32 + j;
+          handle_store(i32store8, instr.imms[0].v.n32, store_offset, imm);
+        } else {
+          for (int j = n.v.n32 - 1; j >= 0; j--) {
+            uint32_t load_offset = i2.v.n32 + j;
+            Immediate imm =
+                handle_load(i32Load8u, instr.imms[1].v.n32, load_offset);
+
+            uint32_t store_offset = i1.v.n32 + j;
+            handle_store(i32store8, instr.imms[0].v.n32, store_offset, imm);
+          }
+        }
+      }
+
+    }
+    else if(instr.op == MemoryInit) {
+      Immediate n = this->pop_stack();
+      Immediate j = this->pop_stack();
+      Immediate i = this->pop_stack();
+
+      uint32_t data_segment_index = instr.imms[0].v.n32;
+      assert(data_segment_index < data.size() && "invalid data segment index");
+
+      for(int h = 0; h < n.v.n32; h++) {
+          uint32_t data_segment_byte_index = h+j.v.n32;
+
+          std::cout << data_segment_index << " -> " << data_segment_byte_index << std::endl;
+          
+          assert(data_segment_byte_index < data[data_segment_index].bytes.size() && "invalid data segment byte index");
+
+          Immediate byte;
+          byte.t = ImmediateRepr::Byte;
+          byte.v.n32 = static_cast<uint32_t>(data[data_segment_index].bytes[data_segment_byte_index]);
+
+          uint32_t store_offset = i.v.n32 + h;
+          OpCode i32store8 = OpCode::I32Store8;
+          handle_store(i32store8, instr.imms[1].v.n32, store_offset, byte);
+      }
+    } else if(instr.op == DataDrop) {
+      uint32_t data_segment_index = instr.imms[0].v.n32;
+      assert(data_segment_index < data.size() && "invalid data segment index");
+      DataSegment& seg = data[data_segment_index];
+      // Drop bytes, TODO: future requests should trap 
+      seg.bytes.clear();
+    }
+    /* STORE Instructions */
+    else if (op_byte >= 0x36 && op_byte <= 0x3E) {
 
       if (instr.imms.size() > 2) {
         assert(false &&
@@ -975,12 +1061,12 @@ void Runtime::execute_block(const std::vector<Instr> &block,
     } else if (instr.op == OpCode::GlobalSet) {
       Immediate val = this->pop_stack();
       uint32_t index = instr.imms[0].v.n32;
-           
+
       assert(index < globals.size() && "invalid globals access");
       assert(globals[index].mut && "invalid set to globals");
       assert(globals[index].value.t == val.t && "invalid type set to globals");
 
-      globals[index].value = val;      
+      globals[index].value = val;
     }
     /* Convertion, Promotion, Demotion */
     else if (op_byte >= 0xA7 && op_byte <= 0xBB) {

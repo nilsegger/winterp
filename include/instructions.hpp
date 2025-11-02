@@ -196,8 +196,17 @@ enum OpCode {
   I64Store16 = 0x3D,
   I64Store32 = 0x3E,
 
+  // Memory Instructions
   MemorySize = 0x3F,
   MemoryGrow = 0x40,
+
+  MemoryInit = 0xFC,
+
+  // These have no actual opcode by themselves, but are versions of  MemoryInit dependent on the flag
+  // FF at the end, such that in cases where the opcode is converted to uint8_t it doest match any cases
+  DataDrop = 0xFC1FF,
+  MemoryCopy = 0xFC2FF,
+  MemoryFill = 0xFC3FF,
 
   // Variable Instructions
   LocalGet = 0x20,
@@ -211,6 +220,7 @@ enum OpCode {
   If = 0x04,
   Else = 0x05,
   Return = 0x0F,
+
 
   End = 0x0b,
 };

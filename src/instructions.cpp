@@ -18,7 +18,6 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
     return;
   }
 
-
   // TODO: go over some of these, some have I32 which should be Byte instead!
   switch (op) {
     // No immediates
@@ -34,6 +33,7 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
+  case OpCode::MemoryFill:
     imm0 = ImmediateRepr::Byte;
     break;
 
@@ -50,6 +50,7 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::GlobalGet:
   case OpCode::Br:
   case OpCode::BrIf:
+  case OpCode::DataDrop:
     imm0 = ImmediateRepr::I32;
     break;
 
@@ -62,6 +63,8 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::I32Store:
   case OpCode::CallIndirect:
   case OpCode::ReturncalIndirect:
+  case OpCode::MemoryInit:
+  case OpCode::MemoryCopy:
     imm0 = ImmediateRepr::I32;
     imm1 = ImmediateRepr::I32;
     break;
@@ -133,6 +136,24 @@ Instr parse_instruction(const uint8_t *&start, const uint8_t *end) {
     return instr;
   }
 
+  if(instr.op == OpCode::MemoryInit) {
+     // This opcode has a differenet meaning dependeng on the flag 
+     uint32_t flag = uleb128_decode<uint32_t>(start, end);
+     if(flag == 8) {
+       // MemoryInit
+     } else if(flag == 9) {
+       instr.op = DataDrop;
+     } else if(flag == 10) {
+       instr.op = MemoryCopy;
+     }  else if (flag == 11) {
+       instr.op = MemoryFill;
+     }  else {
+       assert(false && "todo: invalid memory init flag!");
+     }
+  }
+
+  
+
   // Instructions using memarg
   if (static_cast<uint8_t>(instr.op) >= 0x28 &&
       static_cast<uint8_t>(instr.op) <= 0x3E) {
@@ -155,6 +176,8 @@ Instr parse_instruction(const uint8_t *&start, const uint8_t *end) {
 
   ImmediateRepr imm0, imm1, imm2;
   immediates(instr.op, imm0, imm1, imm2);
+
+  
 
   // TODO: maybe precount to use resize
   // the reason i dont use fixed imm0-2 in Instr is due to edge cases requiring
