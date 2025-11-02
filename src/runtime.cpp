@@ -156,13 +156,12 @@ void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
 
     uint8_t op = static_cast<uint8_t>(block[pc].op);
     if (0x02 <= op && op <= 0x04) {
-      // Not inclusive 0x05, because else does not continue the nesting
+      // Not inclusive 0x05, because else does not continue the nesting, instead is must already have been added by its corresponding if
       conditional_nesting++;
     }
 
     // This case can happen, after block_branch was called, and else is immediatly after a br.
     if (block[pc].op == OpCode::Else) {
-      // assert(false && "todo: should this also conditiona_nesting--?");
       conditional_nesting--;
     }
 
@@ -191,6 +190,8 @@ void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label) 
   // Need to increase by one since it start at 0
   label++;
 
+  std::cout << "Branching label " << label << std::endl;
+
   int conditional_nesting = 0;
 
   while (label > 0) {
@@ -203,7 +204,15 @@ void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label) 
     // Found a block / loop 
     if((op == 0x02 || op == 0x03) && conditional_nesting == 0) {
       label--;
+    } else if((op == 0x02 || op == 0x03)) {
+      conditional_nesting--;      
     } 
+
+    // We are moving up and have found an end, hence the above must be nested!
+    if(op == 0x0b) {
+      conditional_nesting++;      
+    }
+
 
     if(label > 0) {
       pc--;
@@ -220,6 +229,8 @@ void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label) 
     assert(false && "Branching stopped at an invalid op code.");
   }
 
+  std::cout << "Exiting branch at PC " << std::dec << pc << std::endl;
+  std::cout << "Exiting branch with OP  " << std::hex << block[pc].op << std::endl;
 }
 
 Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
@@ -1020,8 +1031,24 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       } else {
         // Do nothing
       }
-    }  else if (instr.op == OpCode::Return) {
-      // TODO: read call frame from stack, return to last caller
+    } else if(instr.op == OpCode::BrTable) {
+      std::cout << "we got table" << std::dec << instr.imms.size() << std::endl;
+
+      Immediate i = this->pop_stack();
+      std::cout << "BrTable Value: " << std::dec << i.v.n32 << std::endl;
+      std::cout << "BrTable Value: " << std::dec << instr.imms[i.v.n32].v.n32 << std::endl;
+
+      assert(i.v.n32 < instr.imms.size());
+
+      if(i.v.n32 < instr.imms.size() - 1) {
+        branch_block(block, pc, instr.imms[i.v.n32].v.n32);
+      } else {
+        // Use default, aka last item in immediates
+        branch_block(block, pc, instr.imms.back().v.n32);
+      }
+      continue;
+       
+    } else if (instr.op == OpCode::Return) {
       break;
     } else {
       std::cout << "Missing opcode handle for " << std::hex << instr.op

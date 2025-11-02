@@ -47,3 +47,8 @@ WASM_TEST(conditional_nested_1, 200);
 WASM_TEST(conditional_nested_2, 300);
 WASM_TEST(call_in_block, 42);
 WASM_TEST(loop_with_blocks, 5);
+WASM_TEST(multi_call, 30);
+WASM_TEST(br_table_nested_0, 400);
+WASM_TEST(br_table_nested_1, 300);
+WASM_TEST(br_table_nested_2, 200);
+WASM_TEST(br_table_nested_3, 100);
