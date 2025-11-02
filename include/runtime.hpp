@@ -51,6 +51,16 @@ private:
   Immediate handle_numeric_binop_i32(const OpCode &op, const Immediate &a,
                                      const Immediate &b);
 
+
+  // Computes the resulting Immediate based on the value of OpCode
+  // The valid OpCodes for this function are limited to unop's for i64
+  Immediate handle_numeric_unop_i64(const OpCode &op, const Immediate &a);
+
+  // Computes the resulting Immediate based on the value of OpCode
+  // The valid OpCodes for this function are limited to binop's for i64
+  Immediate handle_numeric_binop_i64(const OpCode &op, const Immediate &a,
+                                     const Immediate &b);
+
   // Computes the resulting Immediate based on the value of OpCode
   // The valid OpCodes for this function are limited to unop's for f32
   Immediate handle_numeric_unop_f32(const OpCode &op, const Immediate &a);

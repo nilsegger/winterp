@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <gtest/gtest.h>
 
 #include "leb128.hpp"
@@ -23,6 +24,17 @@ TEST(LEB128, DecodingSigned) {
 
   int32_t result = leb128_decode<int32_t>(ptr, end);
   EXPECT_EQ(result, -123456);
+}
+
+
+TEST(LEB128, DecodingSignedI64) {
+
+  std::vector<uint8_t> data = {0xff, 0x81, 0x80, 0x80, 0x80, 0x20};
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+
+   int64_t result = leb128_decode<int64_t>(ptr, end);
+  EXPECT_EQ(result, 0x100000000FF);
 }
 
 TEST(LEB128, DecodingNegativeSigned) {

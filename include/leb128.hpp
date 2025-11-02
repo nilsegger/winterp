@@ -13,7 +13,7 @@ T uleb128_from_blocks(const std::vector<uint8_t>& blocks) {
     // set msb to always be 0 such that it doesnt contribute, then shift
     uint8_t block = blocks[i] & 0x7F;
     int shift = i * 7;
-    result |= (block << shift);
+    result |= (static_cast<T>(block) << shift);
   }
 
   return result;
@@ -52,13 +52,13 @@ T leb128_from_blocks(const std::vector<uint8_t>& blocks) {
     // set msb to always be 0 such that it doesnt contribute, then shift
     uint8_t block = blocks[i] & 0x7F;
     
-    result |= (block << shift);
+    result |= (static_cast<T>(block) << shift);
     shift += 7;
   }
 
   // Ones complement + negating all bits
-  if((shift < sizeof(result) * 8) && ((blocks.back() & 0x40) != 0)) {
-    result |= (~0 << shift);
+  if((shift < sizeof(T) * 8) && ((blocks.back() & 0x40) != 0)) {
+    result |= (~T(0) << shift);
   }
 
   return result;
