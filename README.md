@@ -15,13 +15,15 @@ It currently does not support
   The tests available from the assignment have been converted to GoogleTest assertions.
   They are implemented in the `tests/` directory, with the corresponding binaries in `test_binaries/`.
 
+  I developed the code on Ubuntu but verified on Windows using the MSVC compiler.
   - Build the project using `cmake`
     - `mkdir build && cd build`
+    - `cmake -G "Visual Studio 17 2022" -A x64 ..`
     - `cmake --build .`
-  - Run the tests `./winterp_tests` 
+  - Run the tests `."/Debug/winterp_tests.exe"` 
     - the executable must be run in the build folder, since the '.wasm' binaries will be copied there
-    - make sure to run `winterp_tests` and not `winterp`
-
+    - make sure to run `winterp_tests.exe` and not `winterp.exe`
+  
   The interpreter should now successfully pass the implemented tests of
     - `01_test.wat`
     - `02_test_prio1.wat`
@@ -143,6 +145,8 @@ It currently does not support
   ```
 
 ## Challenges
+  - Release Mode: I was always building in Debug Mode, which gave me no errors, but when building in release mode on Ubuntu, some tests did not pass.
+    This would need some more investigating, since I was unable to reproduce this on Windows in release mode. Im assuming clang is doing some floating point optimisations.
   - Imports: Due to running out of time, my interpreter only supports a single import.
     For more imports, I would need to map module and field name to their counterpart WASI function.
   - Parsing the file: In the beginning I believed parsing a file wouldnt take me as long as it ended up doing, so I was unable to get started on the runtime before saturday.  
