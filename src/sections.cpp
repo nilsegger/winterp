@@ -198,6 +198,80 @@ void WasmFile::parse_code(const std::vector<uint8_t> &data) {
 
 }
 
+
+void WasmFile::parse_table(const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_tables = uleb128_decode<uint32_t>(ptr, end);
+  this->tables.resize(num_tables);
+
+  for(int i = 0; i < num_tables; i++) {
+    Table t;
+
+    t.ref_type = read_byte(ptr, end);
+    assert(t.ref_type != 0x40 && "todo: missing implementation for special table");
+
+    uint8_t limit_flag = read_byte(ptr, end);
+    t.limit_n = uleb128_decode<uint64_t>(ptr, end);
+    if (limit_flag== 0x01 || limit_flag == 0x05) {
+      t.limit_m = uleb128_decode<uint64_t>(ptr, end);
+    } else {
+      t.limit_m = 0;
+    }
+
+    this->tables[i] = t;
+  }
+}
+
+
+void WasmFile::parse_elems(const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_elem_segments = uleb128_decode<uint32_t>(ptr, end);
+  this->elems.resize(num_elem_segments);
+
+  for (int i = 0; i < num_elem_segments; i++) {
+
+    uint8_t flag = read_byte(ptr, end);
+    assert(flag == 0x00 && "todo: currently only supporting elems with flag 0x00");
+    
+    Element elem;
+    read_expr(ptr, end, elem.expr);
+
+    const int num_elems = uleb128_decode<uint32_t>(ptr, end);
+    for(int j = 0; j < num_elems; j++) {
+      elem.function_indices.push_back(uleb128_decode<uint32_t>(ptr, end));
+    }
+
+    this->elems[i] = elem;
+    
+  }
+}
+
+void WasmFile::parse_data(const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_data_segments = uleb128_decode<uint32_t>(ptr, end);
+  this->data.resize(num_data_segments);
+
+  for (int i = 0; i < num_data_segments; i++) {
+    DataSegment data;
+    data.flag = uleb128_decode<uint32_t>(ptr, end);
+    if(data.flag == 0) {
+      read_expr(ptr, end, data.expr);
+      uint32_t num_bytes = uleb128_decode<uint32_t>(ptr, end);
+      for(int j = 0; j < num_bytes; j++) {
+        data.bytes.push_back(read_byte(ptr, end));
+      }
+    } else {
+      assert(false && "todo: read in other data format.");
+    }
+
+    this->data[i] = data;
+  }
+
+}
+
 int WasmFile::read(const char* file_name) {
   
   std::ifstream file(file_name, std::ios::binary);
@@ -251,9 +325,21 @@ int WasmFile::read(const char* file_name) {
       parse_exports(section_data);
     } else if (section_id == CODE_SECTION) {
       parse_code(section_data);
+    } else if(section_id == TABLE_SECTION) {
+      parse_table(section_data);
+    } else if(section_id == ELEMENT_SECTION) {
+      parse_elems(section_data);
+    } else if(section_id == DATA_COUNT_SECTION) {
+      // TODO: Good for validation
+    } else if(section_id == DATA_SECTION) {
+       parse_data(section_data); 
+    } else {
+      assert(false && "todo");
     }
 
   } while (file.peek() != EOF);
+
+  std::cout << "Finished reading file." << std::endl;
 
   return 0;
 }

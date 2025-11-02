@@ -10,10 +10,46 @@
 Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
   memory.resize(MEMORY_PAGE_SIZE);
   pages = 1;
+
+  // Reserve memory of table, also verify only supported reftype is used
+  for (const auto &table : wasm.tables) {
+    assert(table.ref_type == 0x70 &&
+           "todo: currently only support function table, but different type "
+           "was requested.");
+    this->function_table.resize(std::max(table.limit_n, table.limit_m));
+  }
+
+  // Put function indices into function table
+  for (const auto &elem : wasm.elems) {
+    /* Evaluate expression to know offset of function index */
+
+    this->execute_block(elem.expr);
+    Immediate offset = this->pop_stack();
+    assert(offset.t == ImmediateRepr::I32 && "todo: wrong repr assumed.");
+
+    for (int i = 0; i < elem.function_indices.size(); i++) {
+      uint32_t entry_index = offset.v.n32 + i;
+      std::cout << "PUtting function " << elem.function_indices[i] << " at "
+                << entry_index << std::endl;
+
+      this->function_table[entry_index] = elem.function_indices[i];
+    }
+  }
+
+  // Put initial data into memory
+  for (const auto &data : wasm.data) {
+    this->execute_block(data.expr);
+    Immediate offset = this->pop_stack();
+    assert(offset.t == ImmediateRepr::I32 && "todo: wrong repr assumed.");
+
+    std::memcpy(&this->memory[offset.v.n32], data.bytes.data(),
+                data.bytes.size());
+  }
 }
 
 void Runtime::push_stack(const Immediate &imm) {
   assert(imm.t != ImmediateRepr::Uninitialised);
+  std::cout << "Pushing to stack " << static_cast<int32_t>(imm.v.n32) << std::endl;
   this->stack.push_back(imm);
 }
 
@@ -91,30 +127,30 @@ Immediate Runtime::read_memory(const uint32_t &mem_index,
   return read;
 }
 
-void Runtime::skip_block(const Code &c, int &pc) {
+void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
 
   // Assumes skip_block was called directly while pc is still one the if
   pc++;
 
   int conditional_nesting = 0;
 
-  while ((c.expr[pc].op != OpCode::End && c.expr[pc].op != OpCode::Else) ||
+  while ((block[pc].op != OpCode::End && block[pc].op != OpCode::Else) ||
          conditional_nesting > 0) {
 
-    std::cout << std::dec << "PC " << pc << " : " << std::hex << c.expr[pc].op
+    std::cout << std::dec << "PC " << pc << " : " << std::hex << block[pc].op
               << std::endl;
 
-    uint8_t op = static_cast<uint8_t>(c.expr[pc].op);
+    uint8_t op = static_cast<uint8_t>(block[pc].op);
     if (0x02 <= op && op <= 0x04) {
       // Not inclusive 0x05, because else does not continue the nesting
       conditional_nesting++;
     }
 
-    if (c.expr[pc].op == OpCode::Else) {
+    if (block[pc].op == OpCode::Else) {
       assert(false && "todo: should this also conditiona_nesting--?");
     }
 
-    if (c.expr[pc].op == OpCode::End) {
+    if (block[pc].op == OpCode::End) {
       conditional_nesting--;
     }
 
@@ -135,12 +171,29 @@ Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
     result.v.n32 = a.v.n32 * b.v.n32;
   } else if (op == OpCode::I32Sub) {
     result.v.n32 = a.v.n32 - b.v.n32;
+    std::cout << "Sub result " << std::dec << static_cast<int32_t>(result.v.n32) << std::endl;
+    std::cout << "a " << std::dec << static_cast<int32_t>(a.v.n32) << std::endl;
+    std::cout << "b " << std::dec << static_cast<int32_t>(b.v.n32) << std::endl;
   } else if (op == OpCode::GT_S) {
     result.v.n32 =
         static_cast<int32_t>(a.v.n32) > static_cast<int32_t>(b.v.n32);
   } else if (op == OpCode::LT_S) {
     result.v.n32 =
         static_cast<int32_t>(a.v.n32) < static_cast<int32_t>(b.v.n32);
+  } else if (op == OpCode::I32DivS) {
+    assert(b.v.n32 != 0 && "division by 0");
+    result.v.n32 =
+        static_cast<int32_t>(a.v.n32) / static_cast<int32_t>(b.v.n32);
+  } else if (op == OpCode::I32DivU) {
+    assert(b.v.n32 != 0 && "division by 0");
+    result.v.n32 = a.v.n32 / b.v.n32;
+  } else if (op == OpCode::I32RemS) {
+    assert(b.v.n32 != 0 && "division by 0");
+    result.v.n32 =
+        static_cast<int32_t>(a.v.n32) % static_cast<int32_t>(b.v.n32);
+  } else if (op == OpCode::I32RemU) {
+    assert(b.v.n32 != 0 && "division by 0");
+    result.v.n32 = a.v.n32 % b.v.n32;
   } else {
     assert(false && "todo: invalid binop for i32");
   }
@@ -363,6 +416,93 @@ Immediate Runtime::handle_conversion(const OpCode &op, const Immediate &a) {
   return result;
 }
 
+Immediate Runtime::handle_load(const OpCode &op, const uint32_t &mem_index,
+                               const uint32_t &offset) {
+
+  Immediate result;
+  if (op == OpCode::I32Load) {
+    return this->read_memory(mem_index, offset, ImmediateRepr::I32);
+  } else if (op == OpCode::I64Load) {
+    return this->read_memory(mem_index, offset, ImmediateRepr::I64);
+  } else if (op == OpCode::F32Load) {
+    return this->read_memory(mem_index, offset, ImmediateRepr::F32);
+  } else if (op == OpCode::F64Load) {
+    return this->read_memory(mem_index, offset, ImmediateRepr::F64);
+  } else if (op == OpCode::I32Load8S) {
+    result.t = ImmediateRepr::I32;
+    int8_t data;
+    std::memcpy(&data, &this->memory[offset], 1);
+    result.v.n32 = static_cast<int32_t>(data);
+  }
+
+  else if (op == OpCode::I32Load8U) {
+    result.t = ImmediateRepr::I32;
+    uint8_t data;
+    std::memcpy(&data, &this->memory[offset], 1);
+    result.v.n32 = static_cast<uint32_t>(data);
+  }
+
+  else if (op == OpCode::I32Load16S) {
+    result.t = ImmediateRepr::I32;
+    int16_t data;
+    std::memcpy(&data, &this->memory[offset], 2);
+    result.v.n32 = static_cast<int32_t>(data);
+  }
+
+  else if (op == OpCode::I32Load16U) {
+    result.t = ImmediateRepr::I32;
+    uint16_t data;
+    std::memcpy(&data, &this->memory[offset], 2);
+    result.v.n32 = static_cast<uint32_t>(data);
+  }
+
+  else if (op == OpCode::I64Load8S) {
+    result.t = ImmediateRepr::I64;
+    int8_t data;
+    std::memcpy(&data, &this->memory[offset], 1);
+    result.v.n64 = static_cast<int64_t>(data);
+  }
+
+  else if (op == OpCode::I64Load8U) {
+    result.t = ImmediateRepr::I64;
+    uint8_t data;
+    std::memcpy(&data, &this->memory[offset], 1);
+    result.v.n64 = static_cast<uint64_t>(data);
+  }
+
+  else if (op == OpCode::I64Load16S) {
+    result.t = ImmediateRepr::I64;
+    int16_t data;
+    std::memcpy(&data, &this->memory[offset], 2);
+    result.v.n64 = static_cast<int64_t>(data);
+  }
+
+  else if (op == OpCode::I64Load16U) {
+    result.t = ImmediateRepr::I64;
+    uint16_t data;
+    std::memcpy(&data, &this->memory[offset], 2);
+    result.v.n64 = static_cast<uint64_t>(data);
+  }
+
+  else if (op == OpCode::I64Load32S) {
+    result.t = ImmediateRepr::I64;
+    int32_t data;
+    std::memcpy(&data, &this->memory[offset], 4);
+    result.v.n64 = static_cast<int64_t>(data);
+  }
+
+  else if (op == OpCode::I64Load32U) {
+    result.t = ImmediateRepr::I64;
+    uint32_t data;
+    std::memcpy(&data, &this->memory[offset], 4);
+    result.v.n64 = static_cast<uint64_t>(data);
+  } else {
+    assert(false && "todo: missing case");
+  }
+
+  return result;
+}
+
 Immediate Runtime::reinterp(const Immediate &a, const ImmediateRepr from,
                             const ImmediateRepr to) {
   assert(a.t == from && "invalid reinterpretation?");
@@ -371,52 +511,18 @@ Immediate Runtime::reinterp(const Immediate &a, const ImmediateRepr from,
   return c1;
 }
 
-void Runtime::execute(int function_index) {
+void Runtime::execute_block(const std::vector<Instr> &block,
+                            std::vector<Immediate> &params,
+                            std::vector<Immediate> &locals) {
 
-  std::cout << "Function " << std::dec << function_index << " called"
-            << std::endl;
-  std::cout << "Stack size " << this->stack.size() << std::endl;
-
-  // Again, assumes all indices are valid...
-  const Code &block = wasm.codes[function_index];
-
-  std::cout << "Function has " << block.locals.size() << " locals."
-            << std::endl;
-
-  typeidx function_signature_index = wasm.function_section[function_index];
-
-  std::cout << "Function signature index is " << function_signature_index
-            << std::endl;
-
-  // important for stack information
-  const FunctionType &signature = wasm.type_section[function_signature_index];
-
-  std::cout << "Function has " << signature.params.size() << " params"
-            << std::endl;
-
-  /* Pop Stack based on signature params */
-  std::vector<Immediate> params(signature.params.size());
-  for (int i = 0; i < signature.params.size(); i++) {
-    params[i] = this->pop_stack();
-  }
-
-  /* Prepare Locals */
-  std::vector<Immediate> locals;
-  for (auto &local : block.locals) {
-    for (int j = 0; j < local.count; j++) {
-      Immediate l;
-      l.t = local.type;
-      l.v.n64 = 0;
-      locals.push_back(l);
-    }
-  }
+  assert(block.size() > 0 && "execute block was called on empty expr");
 
   /* Emulate Instructions */
   // program counter, which instruction were currently running
   int pc = 0;
-  while (pc < block.expr.size()) {
+  while (pc < block.size()) {
 
-    const Instr &instr = block.expr[pc];
+    const Instr &instr = block[pc];
 
     uint8_t op_byte = static_cast<uint8_t>(instr.op);
 
@@ -446,10 +552,26 @@ void Runtime::execute(int function_index) {
       // taken the else route, skip_block would have stoped at the first op to
       // actually execute after the else
       std::cout << "Skipping else block!" << std::endl;
-      skip_block(block, pc);
+      skip_control_block(block, pc);
       continue;
     } else if (instr.op == OpCode::Call) {
-      execute(instr.imms[0].v.n32);
+      execute_function(instr.imms[0].v.n32);
+    } else if (instr.op == OpCode::CallIndirect) {
+
+      const Immediate &x = instr.imms[0]; // What table to use
+      /* TODO: actually use x */
+      /* TODO: why is signature index required? For call frame? */
+
+      Immediate table_index = this->pop_stack(); // index in table
+
+      assert(table_index.v.n32 < this->function_table.size() &&
+             "invalid function table index!");
+
+      uint32_t ref_function_index = this->function_table[table_index.v.n32];
+      std::cout << "Lookup index " << table_index.v.n32 << "->"
+                << ref_function_index << std::endl;
+
+      execute_function(ref_function_index);
     } else if (instr.op == OpCode::I32Const || instr.op == OpCode::F32Const ||
                instr.op == OpCode::I64Const || instr.op == OpCode::F64Const) {
       this->push_stack(instr.imms[0]);
@@ -488,11 +610,14 @@ void Runtime::execute(int function_index) {
       uint32_t offset = ao.v.n32 + i.v.n32;
       this->write_memory(x.v.n32, offset, c);
 
-    } else if (instr.op == OpCode::I32Load) {
+    }
+    /* Load operations */
+    else if (op_byte >= 0x28 && op_byte <= 0x35) {
 
       if (instr.imms.size() > 2) {
-        assert(false &&
-               "todo: there are 3 immediates to I32Store, special case.");
+        assert(
+            false &&
+            "todo: there are 3 immediates to a load operation, special case.");
       }
 
       Immediate x = instr.imms[0];
@@ -501,7 +626,7 @@ void Runtime::execute(int function_index) {
       Immediate i = this->pop_stack();
 
       uint32_t offset = ao.v.n32 + i.v.n32;
-      this->push_stack(this->read_memory(x.v.n32, offset, ImmediateRepr::I32));
+      this->push_stack(handle_load(instr.op, x.v.n32, offset));
     }
     /* VARIABLE INSTRUCTIONS */
     else if (instr.op == OpCode::LocalGet) {
@@ -594,7 +719,7 @@ void Runtime::execute(int function_index) {
         // execute second block
         // find Else statement or end statement, ignore else/end statements of
         // nested ifs!
-        skip_block(block, pc);
+        skip_control_block(block, pc);
         // dont include pc++ below, this would skip the next meaningfull op
         continue;
       }
@@ -609,6 +734,59 @@ void Runtime::execute(int function_index) {
 
     pc++;
   }
+}
+
+void Runtime::execute_block(const std::vector<Instr> &block) {
+  std::vector<Immediate> params;
+  std::vector<Immediate> locals;
+  execute_block(block, params, locals);
+}
+
+void Runtime::execute_function(int function_index) {
+
+  std::cout << "Function " << std::dec << function_index << " called"
+            << std::endl;
+  std::cout << "Stack size " << this->stack.size() << std::endl;
+
+  // Again, assumes all indices are valid...
+  const Code &block = wasm.codes[function_index];
+
+  std::cout << "Function has " << block.locals.size() << " locals."
+            << std::endl;
+
+  typeidx function_signature_index = wasm.function_section[function_index];
+
+  std::cout << "Function signature index is " << function_signature_index
+            << std::endl;
+
+  // important for stack information
+  const FunctionType &signature = wasm.type_section[function_signature_index];
+
+  std::cout << "Function has " << signature.params.size() << " params"
+            << std::endl;
+
+  /* Pop Stack based on signature params */
+  std::vector<Immediate> params(signature.params.size());
+  // Go in reverse, first popped is actually last param!
+  // how did i get this far without noticing problems in the first 65 tests...
+  for (int i = signature.params.size() - 1; i >= 0; i--) {
+    params[i] = this->pop_stack();
+  }
+
+  /* Prepare Locals */
+  std::vector<Immediate> locals;
+  for (auto &local : block.locals) {
+    for (int j = 0; j < local.count; j++) {
+      Immediate l;
+      l.t = local.type;
+      l.v.n64 = 0;
+      locals.push_back(l);
+    }
+  }
+
+  execute_block(block.expr, params, locals);
+
+  std::cout << "Finished executing function " << function_index << std::endl;
 }
 
 void Runtime::run(std::string &function) {
@@ -631,5 +809,5 @@ void Runtime::run(std::string &function) {
   // assumes wasm is well structured with indices, otherwise might crash
   // Code c contains the assembly of the requested function to run
   int function_index = this->wasm.exports[export_index].idx;
-  this->execute(function_index);
+  this->execute_function(function_index);
 }

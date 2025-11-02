@@ -23,6 +23,10 @@ enum OpCode {
   I32Add = 0x6a,
   I32Sub = 0x6b,
   I32Mul = 0x6C,
+  I32DivS = 0x6D,
+  I32DivU = 0x6D,
+  I32RemS = 0x6D,
+  I32RemU = 0x6D,
 
   F32Add = 0x92,
   F32Sub = 0x93,
@@ -96,11 +100,26 @@ enum OpCode {
   F64ReinterpI64 = 0xBF,
 
   Call = 0x10,
+  CallIndirect = 0x11,
   ReturnCall = 0x12,
   ReturncalIndirect = 0x13,
 
   // Memory Instructions
   I32Load = 0x28,
+  I64Load = 0x29,
+  F32Load = 0x2A,
+  F64Load = 0x2B,
+  I32Load8S = 0x2C,
+  I32Load8U = 0x2D,
+  I32Load16S = 0x2E,
+  I32Load16U = 0x2F,
+  I64Load8S = 0x30,
+  I64Load8U = 0x31,
+  I64Load16S = 0x32,
+  I64Load16U = 0x33,
+  I64Load32S = 0x34,
+  I64Load32U = 0x35,
+
   I32Store = 0x36,
   MemorySize = 0x3F,
   MemoryGrow = 0x40,

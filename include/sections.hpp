@@ -75,6 +75,26 @@ struct Code {
   std::vector<Instr> expr;
 };
 
+struct Table {
+  uint8_t ref_type; // Tabletype
+  uint32_t limit_n; // Initial
+  uint32_t limit_m; // Maximum
+  std::vector<Instr> expr; // Only given in special cases
+};
+
+struct Element {
+  std::vector<Instr> expr;
+  std::vector<uint32_t> function_indices;
+};
+
+struct DataSegment {
+  uint32_t flag;
+  // The following 3 members can all be uninitialised based on the value of flag
+  uint32_t memidx;
+  std::vector<Instr> expr;
+  std::vector<uint8_t> bytes;
+};
+
 // Stores the data of the varios sections
 struct WasmFile {
 
@@ -102,12 +122,23 @@ struct WasmFile {
     // Stores the list of codes into wasm.codes
     void parse_code(const std::vector<uint8_t> &data);
 
+    // Stores the list of tables into wasm.table
+    void parse_table(const std::vector<uint8_t> &data);
+
+    // Stores the list of elements into wasm.elems
+    void parse_elems(const std::vector<uint8_t> &data);
+
+    // Stores the list of data into wasm.data
+    void parse_data(const std::vector<uint8_t> &data);
   public:
     std::vector<FunctionType> type_section;
     std::vector<typeidx> function_section;
     std::vector<Memory> memory;
     std::vector<Export> exports;
     std::vector<Code> codes;
+    std::vector<Table> tables;
+    std::vector<Element> elems;
+    std::vector<DataSegment> data;
 
     int read(const char* file);
 };

@@ -3,6 +3,7 @@
 
 #include "instructions.hpp"
 #include "sections.hpp"
+#include <cstdint>
 #include <vector>
 
 // As defined per
@@ -15,13 +16,23 @@ private:
   // the parsed data file
   const struct WasmFile &wasm;
 
+  // Normal stack, can be pushed and popped.
   std::vector<Immediate> stack;
 
+  // Array memory
   std::vector<uint8_t> memory;
+
+  // How many pages of memory we currently have. One page is MEMORY_PAGE_SIZE bytes
   uint32_t pages;
 
+  // Initialised by the "Table" section in wasm
+  std::vector<uint32_t> function_table;
+  
   // Returns and removes the last value on the stack
   Immediate pop_stack();
+
+  // Pushes the stack by imm
+  void push_stack(const Immediate &imm);
 
   // Writes the number to the memory in little-endian bytes
   // https://webassembly.github.io/spec/core/exec/numerics.html#storage
@@ -33,7 +44,7 @@ private:
   // nested conditions
   // The program counter will be left at the first instruction to be executed
   // next.
-  void skip_block(const Code &c, int &pc);
+  void skip_control_block(const std::vector<Instr> &block, int &pc);
 
   // Computes the resulting Immediate based on the value of OpCode
   // The valid OpCodes for this function are limited to binop's for i32
@@ -65,15 +76,25 @@ private:
   // Converts, Promotes or demotes 'a' based on OpCode.
   Immediate handle_conversion(const OpCode &op, const Immediate &a);
 
+  // Handles all Load operations with given reinterp
+  Immediate handle_load(const OpCode &op, const uint32_t& mem_index, const uint32_t& offset);
+
   // Changes the type of A from 'from' to 'to'. No casting or actual conversion
   // is done. Will assert that the current type of a is 'from'.
   Immediate reinterp(const Immediate &a, const ImmediateRepr from,
                      const ImmediateRepr to);
 
+  // Executes the given instruction block
+  // params and locals need to be correctly initialised, since these can be used by the block
+  void execute_block(const std::vector<Instr>& block, std::vector<Immediate>& params, std::vector<Immediate>& locals);
+
+  // Execute a block and initialised params and locals to be empty
+  void execute_block(const std::vector<Instr>& block);
+
   // Executes the function given by its index, storing the results on the stack
   // or memory. It takes an index because function information such as
   // parameters and actual body are stored in different structs in wasm
-  void execute(int function_index);
+  void execute_function(int function_index);
 
 public:
   Runtime(const struct WasmFile &wasm);
@@ -87,8 +108,6 @@ public:
   Immediate read_memory(const uint32_t &mem_index, const uint32_t &offset,
                         const ImmediateRepr repr);
 
-  // Pushes the stack by imm
-  void push_stack(const Immediate &imm);
 };
 
 #endif // RUNNER_HPP

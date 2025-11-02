@@ -46,6 +46,7 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
 
   // Two immediates I32, I32
   case OpCode::I32Store:
+  case OpCode::CallIndirect:
   case OpCode::ReturncalIndirect:
     imm0 = ImmediateRepr::I32;
     imm1 = ImmediateRepr::I32;
