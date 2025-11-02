@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Copy all test binaries to the build directory
+file(COPY ${CMAKE_SOURCE_DIR}/test_binaries DESTINATION ${CMAKE_BINARY_DIR})
+
 set(SOURCES
     src/sections.cpp
     src/leb128.cpp

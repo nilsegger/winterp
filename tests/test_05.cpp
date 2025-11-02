@@ -10,7 +10,7 @@ protected:
   static WasmFile wasm;
 
   static void SetUpTestSuite() {
-    EXPECT_EQ(wasm.read("05_test_complex.wasm"), 0);
+    EXPECT_EQ(wasm.read("test_binaries/05_test_complex.wasm"), 0);
   }
 
   static void TearDownTestSuite() {}
