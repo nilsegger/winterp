@@ -25,24 +25,25 @@ It currently does not support
     - make sure to run `winterp_tests.exe` and not `winterp.exe`
   
   The interpreter should now successfully pass the implemented tests of
-    - `01_test.wat`
-    - `02_test_prio1.wat`
-    - `03_test_prio2.wat` (except of trap tests, these are not implemented)
-    - `04_test_prio3.wat`
-    - `05_test_complex.wat`
-    -  not implemented
-    - `07_test_bulk_memory.wat`
-    -  not implemented
-    - `09_print_hello.wat`
+  
+  - `01_test.wat`
+  - `02_test_prio1.wat`
+  - `03_test_prio2.wat` (except of trap tests, these are not implemented)
+  - `04_test_prio3.wat`
+  - `05_test_complex.wat`
+  -  not implemented
+  - `07_test_bulk_memory.wat`
+  -  not implemented
+  - `09_print_hello.wat`
 
 ## Parsing a WASM file 
   Mostly in
-    - `leb128.hpp`
-    - `section.hpp`
-    - `instructions.hpp`
+  - `leb128.hpp`
+  - `section.hpp`
+  - `instructions.hpp`
 
   ### Sections
-  `include/sections.hpp` contains the important `class WasmFile`, which is responsible for parsing `.wasm` files.
+  `include/sections.hpp` contains the `class WasmFile`, which is responsible for parsing `.wasm` files.
   It stores all the important information like function signatures, exports, globals and the WebAssembly itself.
   A parser for a section usually looks like this
   ```c++
@@ -59,8 +60,9 @@ It currently does not support
     }
   ```
   An important function for parsing has been `uleb128_decode<uint32_t>(ptr, end)`, which works for both `uint32_t` and `uint64_t`.
-  For which I made sure that they move the ptr to the next readable byte, such that they can be called consequently.
-  For this task, using wat2wasm with -v was quite helpful.
+  Of course there are also versions for signed ints, bytes and floats. All parsing and decoding functions take a pointer to the data and move the pointer to the next byte, not belonging to the parsed data.
+
+  For understanding the structure of the Wasm file, using wat2wasm with -v was quite helpful in combination with the offical documentation.
 
   ### Expressions
   An expression is a list of instructions.
@@ -88,7 +90,7 @@ It currently does not support
   The runtime starts with initialising the globals, locals, memory and function table.
   All according to the parsed `WasmFile`.
 
-  Then we enter execution when `Runtime.run(std::string &function)` get called.
+  Then we enter execution when `Runtime.run(std::string &function)` is called.
   
   This looks up the function name in the exports and finds the corresponding function_index.
   There is no Abstract Syntax Tree or Control Flow Graph, the runtime runs directly on the list of instructions.
@@ -97,11 +99,11 @@ It currently does not support
   - `void Runtime::execute_block(...);`
     Responsible for stepping through the instructions step by step. Calls the functions below to control the program counter.
   - `void Runtime::skip_control_block(...);`
-    Skips through a control block until the matching `else` or `end` is found.
+    Skips through a control block by moving the program counter until the matching `else` or `end` is found. For the implementation it was important to ignore, or correctly count if the next else or end is from a nested block.
   - `void Runtime::branch_block(...);`
     Similar to skip_control_block, but dependent on `block` or `loop` will go to the start or end of a label.
     For `block` it escapes the block while for a `loop` it will go to its first instruction inside the loop.
-  - `void push_stack(Immediate imm);`, `Immediate pop_stack();`
+  - `void push_stack(...);`, `Immediate pop_stack();`
     Handle stack operations while checking for missing types and asserting that there is an element when popping.
   - `void Runtime::write_memory(...);`
     Writes to memory, currently ignores memory index, but this wouldnt be a big change to support.
@@ -145,18 +147,19 @@ It currently does not support
   ```
 
 ## Challenges
-  - Release Mode: I was always building in Debug Mode, which gave me no errors, but when building in release mode on Ubuntu, some tests did not pass.
-    This would need some more investigating, since I was unable to reproduce this on Windows in release mode. Im assuming clang is doing some floating point optimisations.
+  - Release Mode: I was always building in Debug Mode, which gave me no errors, but when building in release mode on Ubuntu, 44 of the 237 tests did not pass. All being related to I64 operations or floating point operations.
+    This would need some more investigating, since I was unable to reproduce this on Windows.
   - Imports: Due to running out of time, my interpreter only supports a single import.
-    For more imports, I would need to map module and field name to their counterpart WASI function.
+    For more imports, I would need to map module and field name to their counterpart WASI functions.
   - Parsing the file: In the beginning I believed parsing a file wouldnt take me as long as it ended up doing, so I was unable to get started on the runtime before saturday.  
   - Getting other projects to run: I tried to find WebAssembly projects which my interpreter would be able to run.
-    I alread knew from the beginning that this would be impossible, since I only support `fd_write` and most projects are meant to have a GUI.
-    But I'm fairly confident that easy things like this [rust example](https://wasmbyexample.dev/examples/hello-world/hello-world.rust.en-us.html) could be possible.
-    For other things like this [mandelbrot module](https://www.assemblyscript.org/examples/mandelbrot.html) I would need to add the missing imports for `Math.log` and `Math.log2`. 
+    I alread knew from the beginning that this would most likely be impossible, since I only support `fd_write` and most projects are meant to have a GUI.
+    But I'm fairly confident that simpler things like this [rust example](https://wasmbyexample.dev/examples/hello-world/hello-world.rust.en-us.html) could be possible.
+    For other things like [mandelbrot module](https://www.assemblyscript.org/examples/mandelbrot.html) it would be interesting to see if adding the missing imports for `Math.log` and `Math.log2` would be enough. 
     This should be fairly straightforward by adapting the `execute_import` function. 
 
 ### What I would do differently or improve
+  - Further make use Immediate types. For operations, it could be beneficial to always assert for correct types.
   - Gracious error handling: The Code currently simply crashes in debug mode when invalid executions happen.
     There would need to be a refactor to introduce error code or exceptions. 
     I personally would would choose error codes and pass these around, this would mean that any current return value would need to be added as a parameter reference. 
