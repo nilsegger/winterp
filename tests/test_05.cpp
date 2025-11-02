@@ -52,3 +52,7 @@ WASM_TEST(br_table_nested_0, 400);
 WASM_TEST(br_table_nested_1, 300);
 WASM_TEST(br_table_nested_2, 200);
 WASM_TEST(br_table_nested_3, 100);
+WASM_TEST(complex_stack, 25);
+WASM_TEST(recursive_5, 120);
+WASM_TEST(empty_blocks, 42);
+WASM_TEST(loop_label_cleanup, 55);
