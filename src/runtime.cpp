@@ -160,8 +160,10 @@ void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
       conditional_nesting++;
     }
 
+    // This case can happen, after block_branch was called, and else is immediatly after a br.
     if (block[pc].op == OpCode::Else) {
-      assert(false && "todo: should this also conditiona_nesting--?");
+      // assert(false && "todo: should this also conditiona_nesting--?");
+      conditional_nesting--;
     }
 
     if (block[pc].op == OpCode::End) {
@@ -175,38 +177,49 @@ void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
 }
 
 
-void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int arity) {
+void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label) {
 
-  // Assumes pc is still on br
-  pc++;
+  // Branch block behaves differently for loops and blocks
+  // For blocks, pc is set to after the block
+  // while for loop pc it is set to the beginning of the loop!
+  // Label tells us how many blocks / loops were trying to escape out of, in this case its not really a label, more a counter of how many blocks/loops were trying to escape out of
 
-  // The br immediate does not include its own end, hence we need to ignore the first one
-  arity++;
+  // label = 0
+  // -> in a block, go to the end of the block
+  // -> in a loop, go to the start of the loop
+
+  // Need to increase by one since it start at 0
+  label++;
 
   int conditional_nesting = 0;
 
-  while (arity > 0) {
+  while (label > 0) {
 
     std::cout << std::dec << "branching PC " << pc << " : " << std::hex << block[pc].op
               << std::endl;
 
     uint8_t op = static_cast<uint8_t>(block[pc].op);
-    if (0x02 <= op && op <= 0x04) {
-      // Not inclusive 0x05, because else does not continue the nesting
-      conditional_nesting++;
-    }
 
-    if (block[pc].op == OpCode::End && conditional_nesting == 0) {
-      arity--;
-    } else if (block[pc].op == OpCode::End) {
-      // the end block corresponds to an inner if statement / or block...
-      conditional_nesting--;
-    }
+    // Found a block / loop 
+    if((op == 0x02 || op == 0x03) && conditional_nesting == 0) {
+      label--;
+    } 
 
-    pc++;
+    if(label > 0) {
+      pc--;
+    }
   }
 
-  std::cout << "Ended branch skip at op " << std::hex << block[pc].op << std::endl;
+  if(block[pc].op == OpCode::Block) {
+    // We are branching to the end
+    skip_control_block(block, pc);
+  } else if(block[pc].op == OpCode::Loop) {
+    // Looping! We are staying but advancing by once
+    pc++;
+  } else {
+    assert(false && "Branching stopped at an invalid op code.");
+  }
+
 }
 
 Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
@@ -976,8 +989,15 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         // dont include pc++ below, this would skip the next meaningfull op
         continue;
       }
+    } else if (instr.op == OpCode::Loop) {
+      std::cout << "loop type " << std::hex << instr.imms[0].v.n32 << std::endl; 
+      std::cout << "Loop has imms " << std::dec << instr.imms.size() << std::endl;
+      const Immediate& bt = instr.imms[0];
+      assert(bt.v.n32 == 0x40 && "todo: only void as bt for loops currently supported.");
+     
     } else if (instr.op == OpCode::Block) {
-      assert(instr.imms[0].v.n32 == 0x7f && "todo: currently only i32 blocks are allowed.");
+      std::cout << "Blocktype " << std::hex << instr.imms[0].v.n32 << std::endl; 
+      assert((instr.imms[0].v.n32 == 0x7f || instr.imms[0].v.n32 == 0x40) && "todo: currently only i32 blocks or 'e' blocks are allowed.");
       /* TODO: what is "val"? */
       /* This needs to be popped from the stack */
     } else if(instr.op == OpCode::Br) {
@@ -987,7 +1007,20 @@ void Runtime::execute_block(const std::vector<Instr> &block,
 
       branch_block(block, pc, label.v.n32);
       continue; // we do not want to include the last pc++; pc is already at the next instruction
-    } else if (instr.op == OpCode::Return) {
+    } else if(instr.op == OpCode::BrIf) {
+
+      Immediate c = this->pop_stack();
+
+      if(c.v.n32 != 0) {
+        const Immediate& label = instr.imms[0];
+        assert(label.t == ImmediateRepr::I32 && "todo: wrong type assumed.");
+
+        branch_block(block, pc, label.v.n32);
+        continue; // we do not want to include the last pc++; pc is already at the next instruction
+      } else {
+        // Do nothing
+      }
+    }  else if (instr.op == OpCode::Return) {
       // TODO: read call frame from stack, return to last caller
       break;
     } else {

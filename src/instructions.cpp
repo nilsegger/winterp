@@ -31,6 +31,8 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
 
   // Single byte
   case OpCode::Block:
+  case OpCode::Loop:
+  case OpCode::If:
     imm0 = ImmediateRepr::Byte;
     break;
 
@@ -43,8 +45,6 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::LocalSet:
   case OpCode::LocalGet:
   case OpCode::LocalTee:
-  case OpCode::If:
-  case OpCode::Loop:
   case OpCode::Br:
   case OpCode::BrIf:
     imm0 = ImmediateRepr::I32;

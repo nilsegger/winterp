@@ -41,3 +41,9 @@ WasmFile Test05::wasm;
   }
 
 WASM_TEST(nested_blocks, 42);
+WASM_TEST(block_results, 50);
+WASM_TEST(conditional_nested_0, 100);
+WASM_TEST(conditional_nested_1, 200);
+WASM_TEST(conditional_nested_2, 300);
+WASM_TEST(call_in_block, 42);
+WASM_TEST(loop_with_blocks, 5);
