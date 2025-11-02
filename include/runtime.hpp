@@ -46,6 +46,9 @@ private:
   // next.
   void skip_control_block(const std::vector<Instr> &block, int &pc);
 
+  // Moves the program counter to the next executable instruction.
+  // This means it searches for arity + 1 'end's, ignoring newly nested ends.
+  void branch_block(const std::vector<Instr> &block, int &pc, int arity); 
   
   // Computes the resulting Immediate based on the value of OpCode
   // The valid OpCodes for this function are limited to unop's for i32

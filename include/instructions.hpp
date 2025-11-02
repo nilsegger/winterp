@@ -8,6 +8,12 @@ enum OpCode {
   // Parametric
   Unreachable = 0x00,
   Nop = 0x01,
+  Block = 0x02,
+  Loop = 0x03,
+  Br = 0x0C,
+  BrIf = 0x0D,
+  BrTable = 0x0E,
+
   Drop = 0x1A,
   Select = 0x1B,
   Select_t = 0x1C, // Followed by a list
@@ -177,6 +183,7 @@ enum OpCode {
   // Variable Instructions
   LocalGet = 0x20,
   LocalSet = 0x21,
+  LocalTee = 0x22,
 
   // Control Instructions
   If = 0x04,
@@ -189,6 +196,8 @@ enum OpCode {
 enum ImmediateRepr : uint8_t {
 
   Uninitialised = 0x00,
+
+  Byte = 0x01,
 
   // Number types
   I32 = 0x7F,

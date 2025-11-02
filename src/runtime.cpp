@@ -174,6 +174,41 @@ void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
   pc++;
 }
 
+
+void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int arity) {
+
+  // Assumes pc is still on br
+  pc++;
+
+  // The br immediate does not include its own end, hence we need to ignore the first one
+  arity++;
+
+  int conditional_nesting = 0;
+
+  while (arity > 0) {
+
+    std::cout << std::dec << "branching PC " << pc << " : " << std::hex << block[pc].op
+              << std::endl;
+
+    uint8_t op = static_cast<uint8_t>(block[pc].op);
+    if (0x02 <= op && op <= 0x04) {
+      // Not inclusive 0x05, because else does not continue the nesting
+      conditional_nesting++;
+    }
+
+    if (block[pc].op == OpCode::End && conditional_nesting == 0) {
+      arity--;
+    } else if (block[pc].op == OpCode::End) {
+      // the end block corresponds to an inner if statement / or block...
+      conditional_nesting--;
+    }
+
+    pc++;
+  }
+
+  std::cout << "Ended branch skip at op " << std::hex << block[pc].op << std::endl;
+}
+
 Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
                                             const Immediate &a,
                                             const Immediate &b) {
@@ -854,6 +889,21 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         locals[index] = val;
       }
     }
+    else if (instr.op == OpCode::LocalTee) {
+      Immediate val = this->pop_stack();
+
+      // Push twice, but executing LocalSet after will pop the last one again
+      this->push_stack(val);
+
+      uint32_t index = instr.imms[0].v.n32;
+      if (index < params.size()) {
+        params[index] = val;
+      } else {
+        index = index - params.size();
+        assert(index < locals.size() && " LocalSet invalid local index!");
+        locals[index] = val;
+      }
+    }
     /* Convertion, Promotion, Demotion */
     else if (op_byte >= 0xA7 && op_byte <= 0xBB) {
       Immediate a = this->pop_stack();
@@ -926,6 +976,17 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         // dont include pc++ below, this would skip the next meaningfull op
         continue;
       }
+    } else if (instr.op == OpCode::Block) {
+      assert(instr.imms[0].v.n32 == 0x7f && "todo: currently only i32 blocks are allowed.");
+      /* TODO: what is "val"? */
+      /* This needs to be popped from the stack */
+    } else if(instr.op == OpCode::Br) {
+      // Exit block! 
+      const Immediate& label = instr.imms[0];
+      assert(label.t == ImmediateRepr::I32 && "todo: wrong type assumed.");
+
+      branch_block(block, pc, label.v.n32);
+      continue; // we do not want to include the last pc++; pc is already at the next instruction
     } else if (instr.op == OpCode::Return) {
       // TODO: read call frame from stack, return to last caller
       break;

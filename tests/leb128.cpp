@@ -26,7 +26,6 @@ TEST(LEB128, DecodingSigned) {
   EXPECT_EQ(result, -123456);
 }
 
-
 TEST(LEB128, DecodingSignedI64) {
 
   std::vector<uint8_t> data = {0xff, 0x81, 0x80, 0x80, 0x80, 0x20};

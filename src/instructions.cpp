@@ -14,10 +14,12 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   imm2 = ImmediateRepr::Uninitialised;
 
   // Numeric instructions without any immediates
-  if(static_cast<uint8_t>(op) >= 0x45 && static_cast<uint8_t>(op) <= 0xC4) {
+  if (static_cast<uint8_t>(op) >= 0x45 && static_cast<uint8_t>(op) <= 0xC4) {
     return;
   }
 
+
+  // TODO: go over some of these, some have I32 which should be Byte instead!
   switch (op) {
     // No immediates
   case OpCode::Unreachable:
@@ -25,6 +27,11 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::Return:
   case OpCode::Nop:
   case OpCode::Drop:
+    break;
+
+  // Single byte
+  case OpCode::Block:
+    imm0 = ImmediateRepr::Byte;
     break;
 
     // Single immediate I32
@@ -35,7 +42,11 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::ReturnCall:
   case OpCode::LocalSet:
   case OpCode::LocalGet:
+  case OpCode::LocalTee:
   case OpCode::If:
+  case OpCode::Loop:
+  case OpCode::Br:
+  case OpCode::BrIf:
     imm0 = ImmediateRepr::I32;
     break;
 
@@ -73,7 +84,8 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
 Immediate parse_immediate(const ImmediateRepr repr, const uint8_t *&start,
                           const uint8_t *end) {
 
-  assert(repr != ImmediateRepr::Uninitialised && "Invalid immediate repr parsed.");
+  assert(repr != ImmediateRepr::Uninitialised &&
+         "Invalid immediate repr parsed.");
 
   Immediate imm;
   imm.t = repr;
@@ -86,6 +98,8 @@ Immediate parse_immediate(const ImmediateRepr repr, const uint8_t *&start,
     imm.v.p32 = read_float(start, end);
   } else if (repr == ImmediateRepr::F64) {
     imm.v.p64 = read_double(start, end);
+  } else if (repr == ImmediateRepr::Byte) {
+    imm.v.n32 = static_cast<uint32_t>(read_byte(start, end));
   } else {
     assert(false && "todo: invalid immediate repr");
   }
@@ -95,17 +109,17 @@ Immediate parse_immediate(const ImmediateRepr repr, const uint8_t *&start,
 
 // For memargs, depending on the value N, there can be two or three immediates
 // https://webassembly.github.io/spec/core/binary/instructions.html#memory-instructions
-void parse_memarg(const uint8_t *&start, const uint8_t *end, Instr& instr) {
+void parse_memarg(const uint8_t *&start, const uint8_t *end, Instr &instr) {
   Immediate n = parse_immediate(ImmediateRepr::I32, start, end);
   instr.imms.push_back(n);
 
-  if(n.v.n32 >= 64) { // 2^6
-   // x
-   instr.imms.push_back(parse_immediate(ImmediateRepr::I32, start, end));
-  } 
+  if (n.v.n32 >= 64) { // 2^6
+    // x
+    instr.imms.push_back(parse_immediate(ImmediateRepr::I32, start, end));
+  }
 
   // m
-   instr.imms.push_back(parse_immediate(ImmediateRepr::I64, start, end));
+  instr.imms.push_back(parse_immediate(ImmediateRepr::I64, start, end));
 }
 
 Instr parse_instruction(const uint8_t *&start, const uint8_t *end) {
@@ -117,8 +131,22 @@ Instr parse_instruction(const uint8_t *&start, const uint8_t *end) {
   }
 
   // Instructions using memarg
-  if(static_cast<uint8_t>(instr.op) >= 0x28 && static_cast<uint8_t>(instr.op) <= 0x3E) {
+  if (static_cast<uint8_t>(instr.op) >= 0x28 &&
+      static_cast<uint8_t>(instr.op) <= 0x3E) {
     parse_memarg(start, end, instr);
+    return instr;
+  }
+
+  if (instr.op == BrTable) {
+    uint32_t num_targets = uleb128_decode<uint32_t>(start, end);
+    // +1 due to there being a default target at the end
+    for (int i = 0; i < num_targets + 1; i++) {
+      uint32_t break_depth = uleb128_decode<uint32_t>(start, end);
+      Immediate imm;
+      imm.t = ImmediateRepr::I32;
+      imm.v.n32 = break_depth;
+      instr.imms.push_back(imm);
+    }
     return instr;
   }
 
@@ -163,7 +191,7 @@ void read_expr(const uint8_t *&ptr, const uint8_t *end,
 
     if (instr.op == OpCode::End) {
       conditional_nesting--;
-    } 
+    }
 
     // Push all instructions, even ending, to know when control blocks end
     result.push_back(instr);
