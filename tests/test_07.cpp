@@ -1,4 +1,3 @@
-
 #include <gtest/gtest.h>
 
 #include "instructions.hpp"
@@ -29,30 +28,8 @@ WasmFile Test07::wasm;
     EXPECT_EQ(static_cast<int32_t>(result.v.n32), expected_value);             \
   }
 
-#define WASM_BYTE_TEST(func_name, expected_value)                              \
-  TEST_F(Test07, func_name) {                                                  \
-    std::string func = #func_name;                                             \
-                                                                               \
-    Runtime runtime(wasm);                                                     \
-    runtime.run(func);                                                         \
-    Immediate result = runtime.read_memory(2, 0, ImmediateRepr::Byte);         \
-                                                                               \
-    EXPECT_EQ(static_cast<uint8_t>(result.v.n32), expected_value);             \
-  }
-
-#define WASM_F32_TEST(func_name, expected_value)                               \
-  TEST_F(Test07, func_name) {                                                  \
-    std::string func = #func_name;                                             \
-                                                                               \
-    Runtime runtime(wasm);                                                     \
-    runtime.run(func);                                                         \
-    Immediate result = runtime.read_memory(2, 0, ImmediateRepr::F32);          \
-                                                                               \
-    EXPECT_EQ(result.v.p32, expected_value);                                   \
-  }
 
 WASM_TEST(_test_fill_basic, 42);
-
 // TODO: Again, here i think the test description is wrong, it stores the decimal byte 99, never 42, loading this byte should not convert it to 42?
 WASM_TEST(_test_fill_range, 99);
 WASM_TEST(_test_fill_single, 77);

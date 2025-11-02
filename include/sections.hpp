@@ -87,6 +87,13 @@ struct Element {
   std::vector<uint32_t> function_indices;
 };
 
+struct Import {
+  std::string module;
+  std::string field_name;
+  uint8_t kind;
+  uint32_t signature_index;
+};
+
 struct DataSegment {
   uint32_t flag;
   // The following 3 members can all be uninitialised based on the value of flag
@@ -130,6 +137,9 @@ struct WasmFile {
 
     // Stores the list of data into wasm.data
     void parse_data(const std::vector<uint8_t> &data);
+
+    // Stores the list of imports into wasm.imports
+    void parse_imports(const std::vector<uint8_t> &data);
   public:
     std::vector<FunctionType> type_section;
     std::vector<typeidx> function_section;
@@ -140,6 +150,7 @@ struct WasmFile {
     std::vector<Table> tables;
     std::vector<Element> elems;
     std::vector<DataSegment> data;
+    std::vector<Import> imports;
 
     int read(const char* file);
 };

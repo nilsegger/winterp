@@ -274,6 +274,31 @@ void WasmFile::parse_data(const std::vector<uint8_t> &data) {
 
 }
 
+void WasmFile::parse_imports(const std::vector<uint8_t> &data) {
+  const uint8_t *ptr = &data[0];
+  const uint8_t *end = data.data() + data.size();
+  const int num_imports = uleb128_decode<uint32_t>(ptr, end);
+  this->imports.resize(num_imports);
+
+  for (int i = 0; i < num_imports; i++) {
+    Import import;
+
+    const uint32_t module_string_length = uleb128_decode<uint32_t>(ptr, end);
+    import.module = std::string(ptr, ptr + module_string_length);
+    ptr += module_string_length;
+
+    const uint32_t member_string_length = uleb128_decode<uint32_t>(ptr, end);
+    import.field_name = std::string(ptr, ptr + member_string_length);
+    ptr += member_string_length;
+
+    import.kind = read_byte(ptr, end);
+    import.signature_index = uleb128_decode<uint32_t>(ptr, end);
+
+    this->imports[i] = import;
+  }
+}
+
+
 int WasmFile::read(const char* file_name) {
   
   std::ifstream file(file_name, std::ios::binary);
@@ -335,7 +360,9 @@ int WasmFile::read(const char* file_name) {
       // TODO: Good for validation
     } else if(section_id == DATA_SECTION) {
        parse_data(section_data); 
-    } else {
+    } else if(section_id == IMPORT_SECTION) {
+       parse_imports(section_data); 
+    }else {
       assert(false && "todo");
     }
 

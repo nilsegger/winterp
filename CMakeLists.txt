@@ -45,6 +45,7 @@ add_executable(
     tests/test_04.cpp
     tests/test_05.cpp
     tests/test_07.cpp
+    tests/test_09.cpp
     ${SOURCES}
  )
 

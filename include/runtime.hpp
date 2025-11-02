@@ -121,6 +121,9 @@ private:
 
   // Execute a block and initialised params and locals to be empty
   void execute_block(const std::vector<Instr>& block);
+  
+  // Executes the requested import function, these are provided by the "host", aka this interpreter
+  void execute_import(int function_index); 
 
   // Executes the function given by its index, storing the results on the stack
   // or memory. It takes an index because function information such as

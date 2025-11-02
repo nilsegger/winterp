@@ -10,6 +10,7 @@
 #include "runtime.hpp"
 
 Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
+  // TODO: instantiate memory from wasm.memory
   memory.resize(MEMORY_PAGE_SIZE);
   std::fill(memory.begin(), memory.end(), 0);
   pages = 1;
@@ -1212,7 +1213,49 @@ void Runtime::execute_block(const std::vector<Instr> &block) {
   execute_block(block, params, locals);
 }
 
+
+void Runtime::execute_import(int function_index) {
+
+  /* TODO: do fancy lookeup, but currently only support fd_write */
+
+  Immediate nwritten = pop_stack();
+  Immediate iovs_len = pop_stack();
+  Immediate iovs_ptr = pop_stack();
+  Immediate fd = pop_stack();
+
+  uint32_t written = 0;
+
+  for(int i = 0; i < iovs_len.v.n32; i++) {
+    Immediate base_addr = read_memory(0, iovs_ptr.v.n32 + i*8, ImmediateRepr::I32);
+    Immediate len = read_memory(0, iovs_ptr.v.n32 + i*8 + 4, ImmediateRepr::I32);
+
+    std::string chunk(&this->memory[base_addr.v.n32], &this->memory[base_addr.v.n32 + len.v.n32]);
+    if(fd.v.n32 == 1) {
+      std::cout << chunk << std::endl;
+    } else {
+      std::cerr << chunk << std::endl;
+    }
+    written += len.v.n32;
+  }
+
+  Immediate written_result;
+  written_result.t = ImmediateRepr::I32;
+  written_result.v .n32= written;
+  write_memory(0, nwritten.v.n32,  written_result);
+
+  Immediate success;
+  success.t = ImmediateRepr::I32;
+  success.v.n32 = 0;
+  push_stack(success);
+}
+
 void Runtime::execute_function(int function_index) {
+
+  if(function_index < wasm.imports.size()) {
+    return execute_import(function_index);
+  } else {
+    function_index -= wasm.imports.size();
+  }
 
   std::cout << "Function " << std::dec << function_index << " called"
             << std::endl;
