@@ -140,7 +140,7 @@ void WasmFile::parse_global(const std::vector<uint8_t> &data) {
   const uint8_t *ptr = &data[0];
   const uint8_t *end = data.data() + data.size();
   const int num_globals = uleb128_decode<uint32_t>(ptr, end);
-  this->memory.resize(num_globals);
+  this->globals.resize(num_globals);
 
   for (int i = 0; i < num_globals; i++) {
 
@@ -149,6 +149,8 @@ void WasmFile::parse_global(const std::vector<uint8_t> &data) {
     g.mutability = uleb128_decode<uint8_t>(ptr, end);
 
     read_expr(ptr, end, g.expr);
+
+    globals[i] = g;
   }
 }
 

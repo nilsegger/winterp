@@ -39,6 +39,7 @@ enable_testing()
 add_executable(
     ${PROJECT_NAME}_test
     tests/leb128.cpp
+    tests/test_01.cpp
     tests/test_02.cpp
     tests/test_03.cpp
     tests/test_04.cpp

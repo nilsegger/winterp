@@ -26,6 +26,7 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::Else:
   case OpCode::Return:
   case OpCode::Nop:
+  case OpCode::Select:
   case OpCode::Drop:
     break;
 
@@ -45,6 +46,8 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
   case OpCode::LocalSet:
   case OpCode::LocalGet:
   case OpCode::LocalTee:
+  case OpCode::GlobalSet:
+  case OpCode::GlobalGet:
   case OpCode::Br:
   case OpCode::BrIf:
     imm0 = ImmediateRepr::I32;

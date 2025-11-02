@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 
+#include "bits.hpp"
 #include "instructions.hpp"
 #include "runtime.hpp"
 
@@ -44,6 +45,15 @@ Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
 
     std::memcpy(&this->memory[offset.v.n32], data.bytes.data(),
                 data.bytes.size());
+  }
+
+  // Setup Globals
+  for (const auto &global : wasm.globals) {
+    this->execute_block(global.expr);
+    GlobalInstance instance;
+    instance.mut = global.mutability;
+    instance.value = this->pop_stack();
+    this->globals.push_back(instance);
   }
 }
 
@@ -156,11 +166,13 @@ void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
 
     uint8_t op = static_cast<uint8_t>(block[pc].op);
     if (0x02 <= op && op <= 0x04) {
-      // Not inclusive 0x05, because else does not continue the nesting, instead is must already have been added by its corresponding if
+      // Not inclusive 0x05, because else does not continue the nesting, instead
+      // is must already have been added by its corresponding if
       conditional_nesting++;
     }
 
-    // This case can happen, after block_branch was called, and else is immediatly after a br.
+    // This case can happen, after block_branch was called, and else is
+    // immediatly after a br.
     if (block[pc].op == OpCode::Else) {
       conditional_nesting--;
     }
@@ -175,13 +187,15 @@ void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
   pc++;
 }
 
-
-void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label) {
+void Runtime::branch_block(const std::vector<Instr> &block, int &pc,
+                           int label) {
 
   // Branch block behaves differently for loops and blocks
   // For blocks, pc is set to after the block
   // while for loop pc it is set to the beginning of the loop!
-  // Label tells us how many blocks / loops were trying to escape out of, in this case its not really a label, more a counter of how many blocks/loops were trying to escape out of
+  // Label tells us how many blocks / loops were trying to escape out of, in
+  // this case its not really a label, more a counter of how many blocks/loops
+  // were trying to escape out of
 
   // label = 0
   // -> in a block, go to the end of the block
@@ -196,33 +210,32 @@ void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label) 
 
   while (label > 0) {
 
-    std::cout << std::dec << "branching PC " << pc << " : " << std::hex << block[pc].op
-              << std::endl;
+    std::cout << std::dec << "branching PC " << pc << " : " << std::hex
+              << block[pc].op << std::endl;
 
     uint8_t op = static_cast<uint8_t>(block[pc].op);
 
-    // Found a block / loop 
-    if((op == 0x02 || op == 0x03) && conditional_nesting == 0) {
+    // Found a block / loop
+    if ((op == 0x02 || op == 0x03) && conditional_nesting == 0) {
       label--;
-    } else if((op == 0x02 || op == 0x03)) {
-      conditional_nesting--;      
-    } 
-
-    // We are moving up and have found an end, hence the above must be nested!
-    if(op == 0x0b) {
-      conditional_nesting++;      
+    } else if ((op == 0x02 || op == 0x03)) {
+      conditional_nesting--;
     }
 
+    // We are moving up and have found an end, hence the above must be nested!
+    if (op == 0x0b) {
+      conditional_nesting++;
+    }
 
-    if(label > 0) {
+    if (label > 0) {
       pc--;
     }
   }
 
-  if(block[pc].op == OpCode::Block) {
+  if (block[pc].op == OpCode::Block) {
     // We are branching to the end
     skip_control_block(block, pc);
-  } else if(block[pc].op == OpCode::Loop) {
+  } else if (block[pc].op == OpCode::Loop) {
     // Looping! We are staying but advancing by once
     pc++;
   } else {
@@ -230,7 +243,8 @@ void Runtime::branch_block(const std::vector<Instr> &block, int &pc, int label) 
   }
 
   std::cout << "Exiting branch at PC " << std::dec << pc << std::endl;
-  std::cout << "Exiting branch with OP  " << std::hex << block[pc].op << std::endl;
+  std::cout << "Exiting branch with OP  " << std::hex << block[pc].op
+            << std::endl;
 }
 
 Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
@@ -282,45 +296,31 @@ Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
         (static_cast<int32_t>(a.v.n32) >= static_cast<int32_t>(b.v.n32));
   } else if (op == OpCode::I32ge_u) {
     result.v.n32 = a.v.n32 >= b.v.n32;
-  }
-
+  } else if (op == OpCode::I32and) {
+    result.v.n32 = a.v.n32 & b.v.n32;
+  } else if (op == OpCode::I32or) {
+    result.v.n32 = a.v.n32 | b.v.n32;
+  } else if (op == OpCode::I32xor) {
+    result.v.n32 = a.v.n32 ^ b.v.n32;
+  } else if (op == OpCode::I32shl) {
+    result.v.n32 = a.v.n32 << b.v.n32;
+  } else if (op == OpCode::I32shrs) {
+    result.v.n32 = static_cast<int32_t>(a.v.n32) >> static_cast<int32_t>(b.v.n32);
+  } else if (op == OpCode::I32shru) {
+    result.v.n32 = a.v.n32 >> b.v.n32;
+  } else if (op == OpCode::I32rotl) {
+    uint32_t shift = b.v.n32 & 0x3F;
+    result.v.n32 = (a.v.n32 << shift) | (a.v.n32 >> (32 - shift));
+  } else if (op == OpCode::I32rotr) {
+    uint32_t shift = b.v.n32 & 0x3F;
+    result.v.n32 = (a.v.n32 >> shift) | (a.v.n32 << (32 - shift));
+  } 
   else {
     assert(false && "todo: invalid binop for i32");
   }
 
   return result;
 }
-
-// afraid to use __bulitin__ since I dont know which compiler will be used...
-uint64_t clz64(uint64_t x) {
-  if (x == 0)
-    return 64;
-  uint64_t n = 0;
-  for (uint64_t bit = 1ULL << 63; !(x & bit); bit >>= 1)
-    n++;
-  return n;
-}
-
-uint64_t ctz64(uint64_t x) {
-  if (x == 0)
-    return 64;
-  uint64_t n = 0;
-  while ((x & 1) == 0) {
-    n++;
-    x >>= 1;
-  }
-  return n;
-}
-
-uint64_t popcnt64(uint64_t x) {
-  uint64_t n = 0;
-  while (x) {
-    n += x & 1;
-    x >>= 1;
-  }
-  return n;
-}
-
 
 Immediate Runtime::handle_numeric_unop_i32(const OpCode &op,
                                            const Immediate &a) {
@@ -330,12 +330,18 @@ Immediate Runtime::handle_numeric_unop_i32(const OpCode &op,
 
   if (op == I32eqz) {
     result.v.n32 = a.v.n32 == 0;
+  } else if (op == OpCode::I32clz) {
+    result.v.n32 = clz(a.v.n32);
+  } else if (op == OpCode::I32ctz) {
+    result.v.n32 = ctz(a.v.n32);
+  } else if (op == OpCode::I32popcnt) {
+    result.v.n32 = popcnt(a.v.n32);
   } else {
     assert(false && "todo: missing opcode");
   }
 
   return result;
-} 
+}
 
 Immediate Runtime::handle_numeric_unop_i64(const OpCode &op,
                                            const Immediate &a) {
@@ -346,11 +352,11 @@ Immediate Runtime::handle_numeric_unop_i64(const OpCode &op,
   if (op == I64eqz) {
     result.v.n64 = a.v.n64 == 0;
   } else if (op == OpCode::I64clz) {
-    result.v.n64 = clz64(a.v.n64);
+    result.v.n64 = clz(a.v.n64);
   } else if (op == OpCode::I64ctz) {
-    result.v.n64 = ctz64(a.v.n64);
+    result.v.n64 = ctz(a.v.n64);
   } else if (op == OpCode::I64popcnt) {
-    result.v.n64 = popcnt64(a.v.n64);
+    result.v.n64 = popcnt(a.v.n64);
   } else {
     assert(false && "todo: missing opcode");
   }
@@ -392,9 +398,9 @@ Immediate Runtime::handle_numeric_binop_i64(const OpCode &op,
   } else if (op == OpCode::I64shl) {
     result.v.n64 = a.v.n64 << b.v.n64;
   } else if (op == OpCode::I64shrs) {
-    result.v.n64 = a.v.n64 >> b.v.n64;
+    result.v.n64 = static_cast<uint64_t>(a.v.n64) >> static_cast<uint64_t>(b.v.n64);
   } else if (op == OpCode::I64shru) {
-    result.v.n64 = static_cast<uint64_t>(a.v.n64) >> b.v.n64;
+    result.v.n64 = a.v.n64 >> b.v.n64;
   } else if (op == OpCode::I64rotl) {
     uint64_t shift = b.v.n64 & 0x3F;
     result.v.n64 = (a.v.n64 << shift) | (a.v.n64 >> (64 - shift));
@@ -481,7 +487,7 @@ Immediate Runtime::handle_numeric_binop_f32(const OpCode &op,
     result.v.p32 = std::max(a.v.p32, b.v.p32);
   } else if (op == OpCode::F32CopySign) {
     result.v.p32 = std::copysign(a.v.p32, b.v.p32);
-  }else {
+  } else {
 
     // Most likely a Comparison op
     result.t = ImmediateRepr::I32;
@@ -552,7 +558,7 @@ Immediate Runtime::handle_numeric_binop_f64(const OpCode &op,
     result.v.p64 = std::min(a.v.p64, b.v.p64);
   } else if (op == OpCode::F64Max) {
     result.v.p64 = std::max(a.v.p64, b.v.p64);
-  }  else if (op == OpCode::F64CopySign) {
+  } else if (op == OpCode::F64CopySign) {
     result.v.p64 = std::copysign(a.v.p64, b.v.p64);
   } else {
 
@@ -746,6 +752,32 @@ Immediate Runtime::handle_load(const OpCode &op, const uint32_t &mem_index,
   return result;
 }
 
+
+void Runtime::handle_store(const OpCode &op, const uint32_t& mem_index, const uint32_t& offset, const Immediate& value) {
+
+  uint8_t op_byte = static_cast<uint8_t>(op);
+
+  if(op_byte >= 0x36 && op_byte <= 0x39) {
+      this->write_memory(mem_index, offset, value);
+  } 
+  // TODO: bounds checking...
+  else if(op == I32Store8) {
+    uint8_t byte = static_cast<uint8_t>(value.v.n32 & 0xFF);
+    memory[offset] = byte;
+  } else if(op == I32Store16) {
+      std::memcpy(&this->memory[offset], &value.v.n32, 2);
+  } else if(op == I64Store8) {
+    uint8_t byte = static_cast<uint8_t>(value.v.n64 & 0xFF);
+    memory[offset] = byte;
+  } else if(op == I64Store16) {
+      std::memcpy(&this->memory[offset], &value.v.n64, 2);
+  } else if(op == I64Store32) {
+      std::memcpy(&this->memory[offset], &value.v.n64, 4);
+  } else {
+    assert(false && "invalid op!");
+  }   
+}
+
 Immediate Runtime::reinterp(const Immediate &a, const ImmediateRepr from,
                             const ImmediateRepr to) {
   assert(a.t == from && "invalid reinterpretation?");
@@ -769,9 +801,9 @@ void Runtime::execute_block(const std::vector<Instr> &block,
 
     uint8_t op_byte = static_cast<uint8_t>(instr.op);
 
-    bool is_i32_numeric_unop = op_byte == 0x45;  
+    bool is_i32_numeric_unop = op_byte == 0x45 || (op_byte >= 0x67 && op_byte <= 0x69);
 
-     bool is_i32_numeric_binop = (op_byte >= 0x6A && op_byte <= 0x78) ||
+    bool is_i32_numeric_binop = (op_byte >= 0x6A && op_byte <= 0x78) ||
                                 (op_byte >= 0x46 && op_byte <= 0x4F);
 
     bool is_i64_numeric_unop = (op_byte >= 0x79 && op_byte <= 0x7B) ||
@@ -793,13 +825,25 @@ void Runtime::execute_block(const std::vector<Instr> &block,
     // Instructions implemented based on description here
     // https://webassembly.github.io/spec/core/exec/instructions.html
 
-    assert(instr.op != OpCode::Unreachable && "Unreachable statement has been hit!");
+    assert(instr.op != OpCode::Unreachable &&
+           "Unreachable statement has been hit!");
 
     if (instr.op == OpCode::End || instr.op == OpCode::Nop) {
       // Treat as nop, only last End actually ends the function, the rest are
       // useful to know when control blocks end
     } else if (instr.op == OpCode::Drop) {
       this->pop_stack();
+    } else if(instr.op == OpCode::Select) {
+      Immediate c = this->pop_stack();
+      Immediate val2 = this->pop_stack();
+      Immediate val1 = this->pop_stack();
+
+      if (c.v.n32 != 0) {
+        this->push_stack(val1);
+      } else {
+        this->push_stack(val2);
+      }
+
     } else if (instr.op == OpCode::Else) {
       // We have landed in a Else block, which we do not want to execute
       // We know that we can skip this block, because if the if block would have
@@ -848,8 +892,7 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       pages += grow_by.v.n32;
       // TODO: check for failure, like not enough memory.
       memory.resize(pages * MEMORY_PAGE_SIZE);
-    } else if (instr.op == OpCode::I32Store || instr.op == OpCode::I64Store ||
-               instr.op == OpCode::F32Store || instr.op == OpCode::F64Store) {
+    } else if (op_byte >= 0x36 && op_byte <= 0x3E) {
 
       if (instr.imms.size() > 2) {
         assert(false &&
@@ -863,8 +906,7 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       Immediate i = this->pop_stack();
 
       uint32_t offset = ao.v.n32 + i.v.n32;
-      this->write_memory(x.v.n32, offset, c);
-
+      handle_store(instr.op, x.v.n32, offset, c);
     }
     /* Load operations */
     else if (op_byte >= 0x28 && op_byte <= 0x35) {
@@ -912,8 +954,7 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         assert(index < locals.size() && " LocalSet invalid local index!");
         locals[index] = val;
       }
-    }
-    else if (instr.op == OpCode::LocalTee) {
+    } else if (instr.op == OpCode::LocalTee) {
       Immediate val = this->pop_stack();
 
       // Push twice, but executing LocalSet after will pop the last one again
@@ -927,6 +968,19 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         assert(index < locals.size() && " LocalSet invalid local index!");
         locals[index] = val;
       }
+    } else if (instr.op == OpCode::GlobalGet) {
+      uint32_t index = instr.imms[0].v.n32;
+      assert(index < globals.size() && "invalid globals access");
+      this->push_stack(globals[index].value);
+    } else if (instr.op == OpCode::GlobalSet) {
+      Immediate val = this->pop_stack();
+      uint32_t index = instr.imms[0].v.n32;
+           
+      assert(index < globals.size() && "invalid globals access");
+      assert(globals[index].mut && "invalid set to globals");
+      assert(globals[index].value.t == val.t && "invalid type set to globals");
+
+      globals[index].value = val;      
     }
     /* Convertion, Promotion, Demotion */
     else if (op_byte >= 0xA7 && op_byte <= 0xBB) {
@@ -934,8 +988,8 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       this->push_stack(handle_conversion(instr.op, a));
     }
     /* UNOP NUMERIC INSTRUCTIONS */
-    else if (is_i32_numeric_unop || is_f32_numeric_unop || is_f64_numeric_unop ||
-             is_i64_numeric_unop) {
+    else if (is_i32_numeric_unop || is_f32_numeric_unop ||
+             is_f64_numeric_unop || is_i64_numeric_unop) {
       Immediate a = this->pop_stack();
       Immediate b;
       if (is_f32_numeric_unop) {
@@ -1001,53 +1055,59 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         continue;
       }
     } else if (instr.op == OpCode::Loop) {
-      std::cout << "loop type " << std::hex << instr.imms[0].v.n32 << std::endl; 
-      std::cout << "Loop has imms " << std::dec << instr.imms.size() << std::endl;
-      const Immediate& bt = instr.imms[0];
-      assert(bt.v.n32 == 0x40 && "todo: only void as bt for loops currently supported.");
-     
+      std::cout << "loop type " << std::hex << instr.imms[0].v.n32 << std::endl;
+      std::cout << "Loop has imms " << std::dec << instr.imms.size()
+                << std::endl;
+      const Immediate &bt = instr.imms[0];
+      assert(bt.v.n32 == 0x40 &&
+             "todo: only void as bt for loops currently supported.");
+
     } else if (instr.op == OpCode::Block) {
-      std::cout << "Blocktype " << std::hex << instr.imms[0].v.n32 << std::endl; 
-      assert((instr.imms[0].v.n32 == 0x7f || instr.imms[0].v.n32 == 0x40) && "todo: currently only i32 blocks or 'e' blocks are allowed.");
+      std::cout << "Blocktype " << std::hex << instr.imms[0].v.n32 << std::endl;
+      assert((instr.imms[0].v.n32 == 0x7f || instr.imms[0].v.n32 == 0x40) &&
+             "todo: currently only i32 blocks or 'e' blocks are allowed.");
       /* TODO: what is "val"? */
       /* This needs to be popped from the stack */
-    } else if(instr.op == OpCode::Br) {
-      // Exit block! 
-      const Immediate& label = instr.imms[0];
+    } else if (instr.op == OpCode::Br) {
+      // Exit block!
+      const Immediate &label = instr.imms[0];
       assert(label.t == ImmediateRepr::I32 && "todo: wrong type assumed.");
 
       branch_block(block, pc, label.v.n32);
-      continue; // we do not want to include the last pc++; pc is already at the next instruction
-    } else if(instr.op == OpCode::BrIf) {
+      continue; // we do not want to include the last pc++; pc is already at the
+                // next instruction
+    } else if (instr.op == OpCode::BrIf) {
 
       Immediate c = this->pop_stack();
 
-      if(c.v.n32 != 0) {
-        const Immediate& label = instr.imms[0];
+      if (c.v.n32 != 0) {
+        const Immediate &label = instr.imms[0];
         assert(label.t == ImmediateRepr::I32 && "todo: wrong type assumed.");
 
         branch_block(block, pc, label.v.n32);
-        continue; // we do not want to include the last pc++; pc is already at the next instruction
+        continue; // we do not want to include the last pc++; pc is already at
+                  // the next instruction
       } else {
         // Do nothing
       }
-    } else if(instr.op == OpCode::BrTable) {
+    } else if (instr.op == OpCode::BrTable) {
       std::cout << "we got table" << std::dec << instr.imms.size() << std::endl;
 
       Immediate i = this->pop_stack();
       std::cout << "BrTable Value: " << std::dec << i.v.n32 << std::endl;
-      std::cout << "BrTable Value: " << std::dec << instr.imms[i.v.n32].v.n32 << std::endl;
+      std::cout << "BrTable Value: " << std::dec << instr.imms[i.v.n32].v.n32
+                << std::endl;
 
       assert(i.v.n32 < instr.imms.size());
 
-      if(i.v.n32 < instr.imms.size() - 1) {
+      if (i.v.n32 < instr.imms.size() - 1) {
         branch_block(block, pc, instr.imms[i.v.n32].v.n32);
       } else {
         // Use default, aka last item in immediates
         branch_block(block, pc, instr.imms.back().v.n32);
       }
       continue;
-       
+
     } else if (instr.op == OpCode::Return) {
       break;
     } else {

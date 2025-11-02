@@ -22,6 +22,13 @@ private:
   // Array memory
   std::vector<uint8_t> memory;
 
+  struct GlobalInstance {
+    bool mut;
+    Immediate value;
+  };
+
+  std::vector<GlobalInstance> globals;
+
   // How many pages of memory we currently have. One page is MEMORY_PAGE_SIZE bytes
   uint32_t pages;
 
@@ -96,6 +103,9 @@ private:
 
   // Handles all Load operations with given reinterp
   Immediate handle_load(const OpCode &op, const uint32_t& mem_index, const uint32_t& offset);
+
+  // Handles all store operations 
+  void handle_store(const OpCode &op, const uint32_t& mem_index, const uint32_t& offset, const Immediate& value);
 
   // Changes the type of A from 'from' to 'to'. No casting or actual conversion
   // is done. Will assert that the current type of a is 'from'.

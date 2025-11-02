@@ -35,7 +35,12 @@ enum OpCode {
   I32le_u = 0x4D,
   I32ge_s = 0x4E,
   I32ge_u = 0x4F,
+
   
+  I32clz = 0x67,
+  I32ctz = 0x68,
+  I32popcnt = 0x69,
+
   I32Add = 0x6a,
   I32Sub = 0x6b,
   I32Mul = 0x6C,
@@ -43,6 +48,15 @@ enum OpCode {
   I32DivU = 0x6E,
   I32RemS = 0x6F,
   I32RemU = 0x70,
+  I32and = 0x71,
+  I32or = 0x72,
+  I32xor = 0x73,
+  I32shl = 0x74,
+  I32shrs = 0x75,
+  I32shru = 0x76,
+  I32rotl = 0x77,
+  I32rotr = 0x78,
+  
 
   I64Add = 0x7C,
   I64Sub = 0x7D,
@@ -176,6 +190,11 @@ enum OpCode {
   I64Store = 0x37,
   F32Store = 0x38,
   F64Store = 0x39,
+  I32Store8 = 0x3A,
+  I32Store16 = 0x3B,
+  I64Store8 = 0x3C,
+  I64Store16 = 0x3D,
+  I64Store32 = 0x3E,
 
   MemorySize = 0x3F,
   MemoryGrow = 0x40,
@@ -184,6 +203,9 @@ enum OpCode {
   LocalGet = 0x20,
   LocalSet = 0x21,
   LocalTee = 0x22,
+
+  GlobalGet = 0x23,
+  GlobalSet = 0x24,
 
   // Control Instructions
   If = 0x04,

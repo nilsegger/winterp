@@ -134,6 +134,7 @@ struct WasmFile {
     std::vector<FunctionType> type_section;
     std::vector<typeidx> function_section;
     std::vector<Memory> memory;
+    std::vector<Global> globals;
     std::vector<Export> exports;
     std::vector<Code> codes;
     std::vector<Table> tables;
