@@ -57,7 +57,7 @@ void Runtime::push_stack(const Immediate &imm) {
     std::cout << "Pushing to stack (I64 signed) "
               << static_cast<int64_t>(imm.v.n64) << std::endl;
   } else if (imm.t == ImmediateRepr::F32) {
-    std::cout << "Pushing to stack F32" << imm.v.p32 << std::endl;
+    std::cout << "Pushing to stack F32 " << imm.v.p32 << std::endl;
   } else if (imm.t == ImmediateRepr::F64) {
     std::cout << "Pushing to stack F64 " << imm.v.p64 << std::endl;
   }
@@ -185,12 +185,6 @@ Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
     result.v.n32 = a.v.n32 * b.v.n32;
   } else if (op == OpCode::I32Sub) {
     result.v.n32 = a.v.n32 - b.v.n32;
-  } else if (op == OpCode::GT_S) {
-    result.v.n32 =
-        static_cast<int32_t>(a.v.n32) > static_cast<int32_t>(b.v.n32);
-  } else if (op == OpCode::LT_S) {
-    result.v.n32 =
-        static_cast<int32_t>(a.v.n32) < static_cast<int32_t>(b.v.n32);
   } else if (op == OpCode::I32DivS) {
     assert(b.v.n32 != 0 && "division by 0");
     result.v.n32 =
@@ -205,7 +199,33 @@ Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
   } else if (op == OpCode::I32RemU) {
     assert(b.v.n32 != 0 && "division by 0");
     result.v.n32 = a.v.n32 % b.v.n32;
-  } else {
+  } else if (op == OpCode::I32eq) {
+    result.v.n32 = (a.v.n32 == b.v.n32);
+  } else if (op == OpCode::I32ne) {
+    result.v.n32 = (a.v.n32 != b.v.n32);
+  } else if (op == OpCode::I32ltu) {
+    result.v.n32 = a.v.n32 < b.v.n32;
+  } else if (op == OpCode::I32lts) {
+    result.v.n32 =
+        (static_cast<int32_t>(a.v.n32) < static_cast<int32_t>(b.v.n32));
+  } else if (op == OpCode::I32gtu) {
+    result.v.n32 = a.v.n32 > b.v.n32;
+  } else if (op == OpCode::I32gts) {
+    result.v.n32 =
+        (static_cast<int32_t>(a.v.n32) > static_cast<int32_t>(b.v.n32));
+  } else if (op == OpCode::I32le_s) {
+    result.v.n32 =
+        (static_cast<int32_t>(a.v.n32) <= static_cast<int32_t>(b.v.n32));
+  } else if (op == OpCode::I32le_u) {
+    result.v.n32 = a.v.n32 <= b.v.n32;
+  } else if (op == OpCode::I32ge_s) {
+    result.v.n32 =
+        (static_cast<int32_t>(a.v.n32) >= static_cast<int32_t>(b.v.n32));
+  } else if (op == OpCode::I32ge_u) {
+    result.v.n32 = a.v.n32 >= b.v.n32;
+  }
+
+  else {
     assert(false && "todo: invalid binop for i32");
   }
 
@@ -242,6 +262,22 @@ uint64_t popcnt64(uint64_t x) {
   return n;
 }
 
+
+Immediate Runtime::handle_numeric_unop_i32(const OpCode &op,
+                                           const Immediate &a) {
+
+  Immediate result;
+  result.t = ImmediateRepr::I32;
+
+  if (op == I32eqz) {
+    result.v.n32 = a.v.n32 == 0;
+  } else {
+    assert(false && "todo: missing opcode");
+  }
+
+  return result;
+} 
+
 Immediate Runtime::handle_numeric_unop_i64(const OpCode &op,
                                            const Immediate &a) {
 
@@ -274,12 +310,6 @@ Immediate Runtime::handle_numeric_binop_i64(const OpCode &op,
     result.v.n64 = a.v.n64 * b.v.n64;
   } else if (op == OpCode::I64Sub) {
     result.v.n64 = a.v.n64 - b.v.n64;
-  } else if (op == OpCode::GT_S) {
-    result.v.n64 =
-        static_cast<int64_t>(a.v.n64) > static_cast<int64_t>(b.v.n64);
-  } else if (op == OpCode::LT_S) {
-    result.v.n64 =
-        static_cast<int64_t>(a.v.n64) < static_cast<int64_t>(b.v.n64);
   } else if (op == OpCode::I64DivS) {
     assert(b.v.n64 != 0 && "division by 0");
     result.v.n64 =
@@ -324,6 +354,23 @@ Immediate Runtime::handle_numeric_binop_i64(const OpCode &op,
   } else if (op == OpCode::I64gts) {
     result.v.n32 =
         (static_cast<int64_t>(a.v.n64) > static_cast<int64_t>(b.v.n64)) ? 1 : 0;
+  } else if (op == OpCode::I64gts) {
+    result.v.n32 =
+        (static_cast<int64_t>(a.v.n64) > static_cast<int64_t>(b.v.n64)) ? 1 : 0;
+  } else if (op == OpCode::I64gtu) {
+    result.v.n32 = a.v.n64 > b.v.n64 ? 1 : 0;
+  } else if (op == OpCode::I64les) {
+    result.v.n32 =
+        (static_cast<int64_t>(a.v.n64) <= static_cast<int64_t>(b.v.n64)) ? 1
+                                                                         : 0;
+  } else if (op == OpCode::I64leu) {
+    result.v.n32 = a.v.n64 <= b.v.n64 ? 1 : 0;
+  } else if (op == OpCode::I64ges) {
+    result.v.n32 =
+        (static_cast<int64_t>(a.v.n64) >= static_cast<int64_t>(b.v.n64)) ? 1
+                                                                         : 0;
+  } else if (op == OpCode::I64geu) {
+    result.v.n32 = a.v.n64 >= b.v.n64 ? 1 : 0;
   } else {
     assert(false && "todo: invalid binop for i64");
   }
@@ -350,6 +397,8 @@ Immediate Runtime::handle_numeric_unop_f32(const OpCode &op,
     result.v.p32 = std::trunc(a.v.p32);
   } else if (op == OpCode::F32Nearest) {
     result.v.p32 = std::rintf(a.v.p32);
+  } else {
+    assert(false && "todo: invalid f32 binop");
   }
   return result;
 }
@@ -371,7 +420,9 @@ Immediate Runtime::handle_numeric_binop_f32(const OpCode &op,
     result.v.p32 = std::min(a.v.p32, b.v.p32);
   } else if (op == OpCode::F32Max) {
     result.v.p32 = std::max(a.v.p32, b.v.p32);
-  } else {
+  } else if (op == OpCode::F32CopySign) {
+    result.v.p32 = std::copysign(a.v.p32, b.v.p32);
+  }else {
 
     // Most likely a Comparison op
     result.t = ImmediateRepr::I32;
@@ -442,6 +493,8 @@ Immediate Runtime::handle_numeric_binop_f64(const OpCode &op,
     result.v.p64 = std::min(a.v.p64, b.v.p64);
   } else if (op == OpCode::F64Max) {
     result.v.p64 = std::max(a.v.p64, b.v.p64);
+  }  else if (op == OpCode::F64CopySign) {
+    result.v.p64 = std::copysign(a.v.p64, b.v.p64);
   } else {
 
     // Most likely a Comparison op
@@ -657,26 +710,31 @@ void Runtime::execute_block(const std::vector<Instr> &block,
 
     uint8_t op_byte = static_cast<uint8_t>(instr.op);
 
-    bool is_i32_numeric_binop = (op_byte >= 0x6A && op_byte <= 0x78) ||
-                                (op_byte >= 0x45 && op_byte <= 0x4F);
+    bool is_i32_numeric_unop = op_byte == 0x45;  
+
+     bool is_i32_numeric_binop = (op_byte >= 0x6A && op_byte <= 0x78) ||
+                                (op_byte >= 0x46 && op_byte <= 0x4F);
 
     bool is_i64_numeric_unop = (op_byte >= 0x79 && op_byte <= 0x7B) ||
                                (op_byte >= 0x50 && op_byte <= 0x50);
     bool is_i64_numeric_binop = (op_byte >= 0x7C && op_byte <= 0x8A) ||
-                                (op_byte >= 0x51 && op_byte <= 0x55);
+                                (op_byte >= 0x51 && op_byte <= 0x5A);
 
     bool is_f32_numeric_unop = op_byte >= 0x8B && op_byte <= 0x91;
     bool is_f32_numeric_binop = (op_byte >= 0x92 && op_byte <= 0x98) ||
-                                (op_byte >= 0x5B && op_byte <= 0x60);
+                                (op_byte >= 0x5B && op_byte <= 0x60) ||
+                                (op_byte == 0x98);
 
     bool is_f64_numeric_unop = (op_byte >= 0x99 && op_byte <= 0x9F);
-    bool is_f64_numeric_binop = (op_byte >= 0xA0 && op_byte <= 0xA5) ||
+    bool is_f64_numeric_binop = (op_byte >= 0xA0 && op_byte <= 0xA6) ||
                                 (op_byte >= 0x61 && op_byte <= 0x66);
 
     std::cout << "Read OP " << std::hex << instr.op << std::dec << std::endl;
 
     // Instructions implemented based on description here
     // https://webassembly.github.io/spec/core/exec/instructions.html
+
+    assert(instr.op != OpCode::Unreachable && "Unreachable statement has been hit!");
 
     if (instr.op == OpCode::End || instr.op == OpCode::Nop) {
       // Treat as nop, only last End actually ends the function, the rest are
@@ -802,7 +860,7 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       this->push_stack(handle_conversion(instr.op, a));
     }
     /* UNOP NUMERIC INSTRUCTIONS */
-    else if (is_f32_numeric_unop || is_f64_numeric_unop ||
+    else if (is_i32_numeric_unop || is_f32_numeric_unop || is_f64_numeric_unop ||
              is_i64_numeric_unop) {
       Immediate a = this->pop_stack();
       Immediate b;
@@ -810,6 +868,8 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         b = handle_numeric_unop_f32(instr.op, a);
       } else if (is_f64_numeric_unop) {
         b = handle_numeric_unop_f64(instr.op, a);
+      } else if (is_i32_numeric_unop) {
+        b = handle_numeric_unop_i32(instr.op, a);
       } else if (is_i64_numeric_unop) {
         b = handle_numeric_unop_i64(instr.op, a);
       } else {

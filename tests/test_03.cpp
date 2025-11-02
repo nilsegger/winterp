@@ -41,18 +41,6 @@ WasmFile Test03::wasm;
     EXPECT_EQ(result.v.p32, expected_value);                                   \
   }
 
-  
-#define WASM_F64_TEST(func_name, offset, expected_value)                               \
-  TEST_F(Test03, func_name) {                                                  \
-    std::string func = #func_name;                                             \
-                                                                               \
-    Runtime runtime(wasm);                                                     \
-    runtime.run(func);                                                         \
-    Immediate result = runtime.read_memory(2, offset, ImmediateRepr::F64);          \
-                                                                               \
-    EXPECT_EQ(result.v.p64, expected_value);                                   \
-  }
-  
 WASM_TEST(_test_data_read_char_h, 200, 'H');
 WASM_TEST(_test_data_read_char_e, 200, 'e');
 WASM_TEST(_test_data_read_i32_42, 200, 42);

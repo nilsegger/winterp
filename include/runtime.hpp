@@ -46,6 +46,11 @@ private:
   // next.
   void skip_control_block(const std::vector<Instr> &block, int &pc);
 
+  
+  // Computes the resulting Immediate based on the value of OpCode
+  // The valid OpCodes for this function are limited to unop's for i32
+  Immediate handle_numeric_unop_i32(const OpCode &op, const Immediate &a);
+
   // Computes the resulting Immediate based on the value of OpCode
   // The valid OpCodes for this function are limited to binop's for i32
   Immediate handle_numeric_binop_i32(const OpCode &op, const Immediate &a,

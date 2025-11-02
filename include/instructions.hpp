@@ -17,9 +17,19 @@ enum OpCode {
   I64Const = 0x42,
   F32Const = 0x43,
   F64Const = 0x44,
-  GT_S = 0x4A,
-  LT_S = 0x48,
 
+  I32eqz = 0x45, // unop!
+  I32eq = 0x46,
+  I32ne = 0x47,
+  I32lts = 0x48,
+  I32ltu = 0x49,
+  I32gts = 0x4A,
+  I32gtu = 0x4B,
+  I32le_s = 0x4C,
+  I32le_u = 0x4D,
+  I32ge_s = 0x4E,
+  I32ge_u = 0x4F,
+  
   I32Add = 0x6a,
   I32Sub = 0x6b,
   I32Mul = 0x6C,
@@ -55,6 +65,12 @@ enum OpCode {
   I64ltu = 0x54,
   I64gts = 0x55,
 
+  I64gtu = 0x56,
+  I64les = 0x57,
+  I64leu = 0x58,
+  I64ges = 0x59,
+  I64geu = 0x5A,
+
   F32Add = 0x92,
   F32Sub = 0x93,
   F32Mul = 0x94,
@@ -68,6 +84,8 @@ enum OpCode {
   F32Trunc = 0x8F,
   F32Nearest = 0x90,
   F32Sqrt = 0x91,
+
+  F32CopySign = 0x98,
 
   F32EQ = 0x5B,
   F32Ne = 0x5C,
@@ -89,6 +107,7 @@ enum OpCode {
   F64Div = 0xA3,
   F64Min = 0xA4,
   F64Max = 0xA5,
+  F64CopySign = 0xA6,
 
   F64EQ = 0x61,
   F64Ne = 0x62,

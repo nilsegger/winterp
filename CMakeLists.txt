@@ -41,6 +41,7 @@ add_executable(
     tests/leb128.cpp
     tests/test_02.cpp
     tests/test_03.cpp
+    tests/test_04.cpp
     ${SOURCES}
  )
 
