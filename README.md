@@ -153,7 +153,7 @@ It currently does not support
 ### What I would do differently or improve
   - Better compiler flags? Switching to MSVC gave me better warnings for when untyped conversions happen. While using clang my code compiles without any warnings.
   - Further make use of the Immediate types. For operations, it could be beneficial to always assert for correct types.
-  - Extract more functions out of execute_block, to reduce its size...
+  - Extract more functions out of execute_block to reduce its size...
   - Gracious error handling: The Code currently simply crashes in debug mode when invalid executions would happen. For release mode the behaviour could be undefined.
     There would need to be a refactor to introduce error code or exceptions. 
     I personally would would choose error codes and pass these around, this would mean that any current return value would need to be added as a parameter reference. 
