@@ -19,8 +19,8 @@ It currently does not support
   - Build the project using `cmake`
     - `mkdir build && cd build`
     - `cmake -G "Visual Studio 17 2022" -A x64 ..`
-    - `cmake --build .`
-  - Run the tests `."/Debug/winterp_tests.exe"` 
+    - `cmake --build .` or `cmake --build . --config Release`
+  - Run the tests `."/Debug/winterp_tests.exe"` or `."/Release/winterp_tests.exe"`
     - the executable must be run in the build folder, since the '.wasm' binaries will be copied there
   
   The interpreter should now successfully pass the implemented tests of
@@ -36,11 +36,6 @@ It currently does not support
   - `09_print_hello.wat`
 
 ## Parsing a WASM file 
-  Mostly in
-  - `leb128.hpp`
-  - `section.hpp`
-  - `instructions.hpp`
-
   ### Sections
   `include/sections.hpp` contains the `class WasmFile`, which is responsible for parsing `.wasm` files.
   It stores all the important information like function signatures, exports, globals and the WebAssembly itself.
@@ -92,7 +87,7 @@ It currently does not support
   Then we enter execution when `Runtime.run(std::string &function)` is called.
   
   This looks up the function name in the exports and finds the corresponding function_index.
-  There is no Abstract Syntax Tree or Control Flow Graph, the runtime runs directly on the list of instructions.
+  There is no Abstract Syntax Tree or Control Flow Graph, the runtime runs directly on the list of instructions. This is mostly due to time constraints, but stepping through the instructions ended up being fairly simple to implement.
   The most important functions in `include/runtime.hpp` are
   
   - `void Runtime::execute_block(...);`
@@ -146,8 +141,6 @@ It currently does not support
   ```
 
 ## Challenges
-  - Release Mode: I was always building in Debug Mode, which gave me no errors, but when building in release mode on Ubuntu, 44 of the 237 tests did not pass. All being related to I64 operations or floating point operations.
-    This would need some more investigating, since I was unable to reproduce this on Windows.
   - Imports: Due to running out of time, my interpreter only supports a single import.
     For more imports, I would need to map module and field name to their counterpart WASI functions.
   - Parsing the file: In the beginning I believed parsing a file wouldnt take me as long as it ended up doing, so I was unable to get started on the runtime before saturday.  
@@ -158,10 +151,11 @@ It currently does not support
     This should be fairly straightforward by adapting the `execute_import` function. 
 
 ### What I would do differently or improve
-  - Further make use Immediate types. For operations, it could be beneficial to always assert for correct types.
-  - Gracious error handling: The Code currently simply crashes in debug mode when invalid executions happen.
+  - Better compiler flags? Switching to MSVC gave me better warnings for when untyped conversions happen. While using clang my code compiles without any warnings.
+  - Further make use of the Immediate types. For operations, it could be beneficial to always assert for correct types.
+  - Gracious error handling: The Code currently simply crashes in debug mode when invalid executions would happen. For release mode the behaviour could be undefined.
     There would need to be a refactor to introduce error code or exceptions. 
     I personally would would choose error codes and pass these around, this would mean that any current return value would need to be added as a parameter reference. 
-  - Implement a correct Store structure
+  - Implement a correct Store structure. For the given test cases there was no need to do this, but for a correct runtime this would be required.
   - The interpreter is very much focused around the test files, instructions not covered in the tests will most likely crash the program.
   - For a production system I would also have liked to explore an LLVM approach.
