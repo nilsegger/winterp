@@ -53,7 +53,6 @@ ImmediateRepr WasmFile::read_valtype(const uint8_t* &ptr, const uint8_t* end) {
         valtype != 0x7F) {
       // TODO: implement
       // https://webassembly.github.io/spec/core/binary/types.html#value-types
-      std::cout << "Unsupported valtype " << std::hex << valtype << std::endl;
       assert(false && "valtype not yet supported!!");
     }
 
@@ -331,10 +330,6 @@ int WasmFile::read(const char* file_name) {
     file.read((char *)&section_id, sizeof(section_id));
     section_size = file_uleb128_u32t(file);
 
-    std::cout << "; section " << section_name(section_id) << std::endl;
-    std::cout << static_cast<int>(section_size) << "\t\t\t; section_size"
-              << std::endl;
-
     // assumes code files are not larger that working memory...
     std::vector<uint8_t> section_data(section_size);
     file.read((char *)section_data.data(), section_size);
@@ -367,8 +362,6 @@ int WasmFile::read(const char* file_name) {
     }
 
   } while (file.peek() != EOF);
-
-  std::cout << "Finished reading file." << std::endl;
 
   return 0;
 }

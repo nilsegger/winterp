@@ -33,9 +33,6 @@ Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
 
     for (int i = 0; i < elem.function_indices.size(); i++) {
       uint32_t entry_index = offset.v.n32 + i;
-      std::cout << "PUtting function " << elem.function_indices[i] << " at "
-                << entry_index << std::endl;
-
       this->function_table[entry_index] = elem.function_indices[i];
     }
   }
@@ -65,19 +62,6 @@ Runtime::Runtime(const struct WasmFile &wasm) : wasm(wasm) {
 
 void Runtime::push_stack(const Immediate &imm) {
   assert(imm.t != ImmediateRepr::Uninitialised);
-
-  if (imm.t == ImmediateRepr::I32) {
-    std::cout << "Pushing to stack (I32 signed) "
-              << static_cast<int32_t>(imm.v.n32) << std::endl;
-  } else if (imm.t == ImmediateRepr::I64) {
-    std::cout << "Pushing to stack (I64 signed) "
-              << static_cast<int64_t>(imm.v.n64) << std::endl;
-  } else if (imm.t == ImmediateRepr::F32) {
-    std::cout << "Pushing to stack F32 " << imm.v.p32 << std::endl;
-  } else if (imm.t == ImmediateRepr::F64) {
-    std::cout << "Pushing to stack F64 " << imm.v.p64 << std::endl;
-  }
-
   this->stack.push_back(imm);
 }
 
@@ -95,14 +79,6 @@ Immediate Runtime::pop_stack() {
 void Runtime::write_memory(const uint32_t &mem_index, const uint32_t &offset,
                            const Immediate &imm) {
   // TODO: actual store with mem_index
-
-  std::cout << "WRITE TO MEMORY " << std::dec << mem_index << " offset "
-            << offset << std::endl;
-  std::cout << "Type " << std::hex << imm.t << std::endl;
-  std::cout << "Value Unsigned " << std::dec << imm.v.n32 << std::endl;
-  std::cout << "Value Signed " << std::dec << static_cast<int32_t>(imm.v.n32)
-            << std::endl;
-
   switch (imm.t) {
   case ImmediateRepr::Uninitialised:
     assert(false && "Invalid repr found.");
@@ -171,9 +147,6 @@ void Runtime::skip_control_block(const std::vector<Instr> &block, int &pc) {
   while ((block[pc].op != OpCode::End && block[pc].op != OpCode::Else) ||
          conditional_nesting > 0) {
 
-    std::cout << std::dec << "PC " << pc << " : " << std::hex << block[pc].op
-              << std::endl;
-
     uint8_t op = static_cast<uint8_t>(block[pc].op);
     if (0x02 <= op && op <= 0x04) {
       // Not inclusive 0x05, because else does not continue the nesting, instead
@@ -214,14 +187,9 @@ void Runtime::branch_block(const std::vector<Instr> &block, int &pc,
   // Need to increase by one since it start at 0
   label++;
 
-  std::cout << "Branching label " << label << std::endl;
-
   int conditional_nesting = 0;
 
   while (label > 0) {
-
-    std::cout << std::dec << "branching PC " << pc << " : " << std::hex
-              << block[pc].op << std::endl;
 
     uint8_t op = static_cast<uint8_t>(block[pc].op);
 
@@ -252,9 +220,6 @@ void Runtime::branch_block(const std::vector<Instr> &block, int &pc,
     assert(false && "Branching stopped at an invalid op code.");
   }
 
-  std::cout << "Exiting branch at PC " << std::dec << pc << std::endl;
-  std::cout << "Exiting branch with OP  " << std::hex << block[pc].op
-            << std::endl;
 }
 
 Immediate Runtime::handle_numeric_binop_i32(const OpCode &op,
@@ -603,7 +568,6 @@ Immediate Runtime::handle_numeric_binop_f64(const OpCode &op,
 Immediate Runtime::handle_conversion(const OpCode &op, const Immediate &a) {
   Immediate result;
   if (op == I32WrapI64) {
-    std::cout << "hello " << static_cast<int32_t>(result.v.n64) << std::endl;
     result.v.n32 = static_cast<uint32_t>(result.v.n64);
     result.t = ImmediateRepr::I32;
   } else if (op == F32ConvertSI32) {
@@ -832,8 +796,6 @@ void Runtime::execute_block(const std::vector<Instr> &block,
     bool is_f64_numeric_binop = (op_byte >= 0xA0 && op_byte <= 0xA6) ||
                                 (op_byte >= 0x61 && op_byte <= 0x66);
 
-    std::cout << "Read OP " << std::hex << instr.op << std::dec << std::endl;
-
     // Instructions implemented based on description here
     // https://webassembly.github.io/spec/core/exec/instructions.html
 
@@ -861,7 +823,6 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       // We know that we can skip this block, because if the if block would have
       // taken the else route, skip_block would have stoped at the first op to
       // actually execute after the else
-      std::cout << "Skipping else block!" << std::endl;
       skip_control_block(block, pc);
       continue;
     } else if (instr.op == OpCode::Call) {
@@ -878,8 +839,6 @@ void Runtime::execute_block(const std::vector<Instr> &block,
              "invalid function table index!");
 
       uint32_t ref_function_index = this->function_table[table_index.v.n32];
-      std::cout << "Lookup index " << table_index.v.n32 << "->"
-                << ref_function_index << std::endl;
 
       execute_function(ref_function_index);
     } else if (instr.op == OpCode::I32Const || instr.op == OpCode::F32Const ||
@@ -959,8 +918,6 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       for(int h = 0; h < n.v.n32; h++) {
           uint32_t data_segment_byte_index = h+j.v.n32;
 
-          std::cout << data_segment_index << " -> " << data_segment_byte_index << std::endl;
-          
           assert(data_segment_byte_index < data[data_segment_index].bytes.size() && "invalid data segment byte index");
 
           Immediate byte;
@@ -1025,8 +982,6 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         index = index - params.size();
         assert(index < locals.size() && "LocalGet invalid local index!");
         Immediate v = locals[index];
-        std::cout << "read local index " << index << " with value " << v.v.n32
-                  << std::endl;
         this->push_stack(locals[index]);
       }
 
@@ -1133,7 +1088,6 @@ void Runtime::execute_block(const std::vector<Instr> &block,
       if (c.v.n32) {
         // execute first block
       } else {
-        std::cout << "skipping !" << std::endl;
         // execute second block
         // find Else statement or end statement, ignore else/end statements of
         // nested ifs!
@@ -1142,15 +1096,11 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         continue;
       }
     } else if (instr.op == OpCode::Loop) {
-      std::cout << "loop type " << std::hex << instr.imms[0].v.n32 << std::endl;
-      std::cout << "Loop has imms " << std::dec << instr.imms.size()
-                << std::endl;
       const Immediate &bt = instr.imms[0];
       assert(bt.v.n32 == 0x40 &&
              "todo: only void as bt for loops currently supported.");
 
     } else if (instr.op == OpCode::Block) {
-      std::cout << "Blocktype " << std::hex << instr.imms[0].v.n32 << std::endl;
       assert((instr.imms[0].v.n32 == 0x7f || instr.imms[0].v.n32 == 0x40) &&
              "todo: currently only i32 blocks or 'e' blocks are allowed.");
       /* TODO: what is "val"? */
@@ -1178,12 +1128,8 @@ void Runtime::execute_block(const std::vector<Instr> &block,
         // Do nothing
       }
     } else if (instr.op == OpCode::BrTable) {
-      std::cout << "we got table" << std::dec << instr.imms.size() << std::endl;
 
       Immediate i = this->pop_stack();
-      std::cout << "BrTable Value: " << std::dec << i.v.n32 << std::endl;
-      std::cout << "BrTable Value: " << std::dec << instr.imms[i.v.n32].v.n32
-                << std::endl;
 
       assert(i.v.n32 < instr.imms.size());
 
@@ -1198,8 +1144,6 @@ void Runtime::execute_block(const std::vector<Instr> &block,
     } else if (instr.op == OpCode::Return) {
       break;
     } else {
-      std::cout << "Missing opcode handle for " << std::hex << instr.op
-                << std::endl;
       assert(false && "todo: implement new opcode emulation");
     }
 
@@ -1257,26 +1201,13 @@ void Runtime::execute_function(int function_index) {
     function_index -= wasm.imports.size();
   }
 
-  std::cout << "Function " << std::dec << function_index << " called"
-            << std::endl;
-  std::cout << "Stack size " << this->stack.size() << std::endl;
-
   // Again, assumes all indices are valid...
   const Code &block = wasm.codes[function_index];
 
-  std::cout << "Function has " << block.locals.size() << " locals."
-            << std::endl;
-
   typeidx function_signature_index = wasm.function_section[function_index];
-
-  std::cout << "Function signature index is " << function_signature_index
-            << std::endl;
 
   // important for stack information
   const FunctionType &signature = wasm.type_section[function_signature_index];
-
-  std::cout << "Function has " << signature.params.size() << " params"
-            << std::endl;
 
   /* Pop Stack based on signature params */
   std::vector<Immediate> params(signature.params.size());
@@ -1298,8 +1229,6 @@ void Runtime::execute_function(int function_index) {
   }
 
   execute_block(block.expr, params, locals);
-
-  std::cout << "Finished executing function " << function_index << std::endl;
 }
 
 void Runtime::run(std::string &function) {

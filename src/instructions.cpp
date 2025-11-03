@@ -81,8 +81,7 @@ void immediates(OpCode op, ImmediateRepr &imm0, ImmediateRepr &imm1,
 
   // Missing implementation
   default: {
-    std::cout << "OpCode Immediates missing!" << std::hex << op << std::endl;
-    assert(false && "todo");
+    assert(false && "todo: missing immediates");
   }
   };
 }

@@ -22,7 +22,6 @@ It currently does not support
     - `cmake --build .`
   - Run the tests `."/Debug/winterp_tests.exe"` 
     - the executable must be run in the build folder, since the '.wasm' binaries will be copied there
-    - make sure to run `winterp_tests.exe` and not `winterp.exe`
   
   The interpreter should now successfully pass the implemented tests of
   
