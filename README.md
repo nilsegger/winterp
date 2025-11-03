@@ -20,7 +20,7 @@ It currently does not support
     - `mkdir build && cd build`
     - `cmake -G "Visual Studio 17 2022" -A x64 ..`
     - `cmake --build .` or `cmake --build . --config Release`
-  - Run the tests `."/Debug/winterp_tests.exe"` or `."/Release/winterp_tests.exe"`
+  - Run the tests `."/Debug/winterp_test.exe"` or `."/Release/winterp_test.exe"`
     - the executable must be run in the build folder, since the '.wasm' binaries will be copied there
   
   The interpreter should now successfully pass the implemented tests of
