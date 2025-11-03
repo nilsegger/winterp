@@ -66,14 +66,11 @@ void Runtime::push_stack(const Immediate &imm) {
 }
 
 Immediate Runtime::pop_stack() {
-  if (this->stack.size() >= 1) {
+    assert(this->stack.size() > 0 && "malformed stack size.");
     Immediate value = this->stack.back();
     assert(value.t != ImmediateRepr::Uninitialised);
     this->stack.pop_back();
     return value;
-  } else {
-    assert(false && "malformed stack size.");
-  }
 }
 
 void Runtime::write_memory(const uint32_t &mem_index, const uint32_t &offset,
