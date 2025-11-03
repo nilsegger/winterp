@@ -568,72 +568,72 @@ Immediate Runtime::handle_numeric_binop_f64(const OpCode &op,
 Immediate Runtime::handle_conversion(const OpCode &op, const Immediate &a) {
   Immediate result;
   if (op == I32WrapI64) {
-    result.v.n32 = static_cast<uint32_t>(result.v.n64);
+    result.v.n32 = static_cast<uint32_t>(a.v.n64);
     result.t = ImmediateRepr::I32;
   } else if (op == F32ConvertSI32) {
     result.t = ImmediateRepr::F32;
-    result.v.p32 = static_cast<float>((int32_t)result.v.n32);
+    result.v.p32 = static_cast<float>((int32_t)a.v.n32);
   } else if (op == F32ConvertUI32) {
     result.t = ImmediateRepr::F32;
-    result.v.p32 = static_cast<float>(result.v.n32);
+    result.v.p32 = static_cast<float>(a.v.n32);
   } else if (op == F32ConvertSI64) {
     result.t = ImmediateRepr::F32;
-    result.v.p32 = static_cast<float>((int64_t)result.v.n64);
+    result.v.p32 = static_cast<float>((int64_t)a.v.n64);
   } else if (op == F32ConvertUI64) {
     result.t = ImmediateRepr::F32;
-    result.v.p32 = static_cast<float>(result.v.n64);
+    result.v.p32 = static_cast<float>(a.v.n64);
   } else if (op == F32DemoteF64) {
     result.t = ImmediateRepr::F32;
-    result.v.p32 = static_cast<float>(result.v.p64);
+    result.v.p32 = static_cast<float>(a.v.p64);
   } else if (op == F64ConvertSI32) {
     result.t = ImmediateRepr::F64;
-    result.v.p64 = static_cast<double>((int32_t)result.v.n32);
+    result.v.p64 = static_cast<double>((int32_t)a.v.n32);
   } else if (op == F64ConvertUI32) {
     result.t = ImmediateRepr::F64;
-    result.v.p64 = static_cast<double>(result.v.n32);
+    result.v.p64 = static_cast<double>(a.v.n32);
   } else if (op == F64ConvertSI64) {
     result.t = ImmediateRepr::F64;
-    result.v.p64 = static_cast<double>((int64_t)result.v.n64);
+    result.v.p64 = static_cast<double>((int64_t)a.v.n64);
   } else if (op == F64ConvertUI64) {
     result.t = ImmediateRepr::F64;
-    result.v.p64 = static_cast<double>(result.v.n64);
+    result.v.p64 = static_cast<double>(a.v.n64);
   } else if (op == F32PromoteF64) {
     result.t = ImmediateRepr::F64;
-    result.v.p64 = static_cast<double>(result.v.p32);
+    result.v.p64 = static_cast<double>(a.v.p32);
   } else if (op == I32TruncSF32) {
     result.t = ImmediateRepr::I32;
     result.v.n32 =
-        static_cast<int32_t>(static_cast<int64_t>(std::trunc(result.v.p32)));
+        static_cast<int32_t>(static_cast<int64_t>(std::trunc(a.v.p32)));
   } else if (op == I32TruncUF32) {
     result.t = ImmediateRepr::I32;
     result.v.n32 =
-        static_cast<uint32_t>(static_cast<uint64_t>(std::trunc(result.v.p32)));
+        static_cast<uint32_t>(static_cast<uint64_t>(std::trunc(a.v.p32)));
   } else if (op == I32TruncSF64) {
     result.t = ImmediateRepr::I32;
     result.v.n32 =
-        static_cast<int32_t>(static_cast<int64_t>(std::trunc(result.v.p64)));
+        static_cast<int32_t>(static_cast<int64_t>(std::trunc(a.v.p64)));
   } else if (op == I32TruncUF64) {
     result.t = ImmediateRepr::I32;
     result.v.n32 =
-        static_cast<uint32_t>(static_cast<uint64_t>(std::trunc(result.v.p64)));
+        static_cast<uint32_t>(static_cast<uint64_t>(std::trunc(a.v.p64)));
   } else if (op == I64ExtendSI32) {
     result.t = ImmediateRepr::I64;
-    result.v.n64 = static_cast<int64_t>(static_cast<int32_t>(result.v.n32));
+    result.v.n64 = static_cast<int64_t>(static_cast<int32_t>(a.v.n32));
   } else if (op == I64ExtendUI32) {
     result.t = ImmediateRepr::I64;
-    result.v.n64 = static_cast<uint64_t>(static_cast<uint32_t>(result.v.n32));
+    result.v.n64 = static_cast<uint64_t>(static_cast<uint32_t>(a.v.n32));
   } else if (op == I64TruncSF32) {
     result.t = ImmediateRepr::I64;
-    result.v.n64 = static_cast<int64_t>(std::trunc(result.v.p32));
+    result.v.n64 = static_cast<int64_t>(std::trunc(a.v.p32));
   } else if (op == I64TruncUF32) {
     result.t = ImmediateRepr::I64;
-    result.v.n64 = static_cast<uint64_t>(std::trunc(result.v.p32));
+    result.v.n64 = static_cast<uint64_t>(std::trunc(a.v.p32));
   } else if (op == I64TruncSF64) {
     result.t = ImmediateRepr::I64;
-    result.v.n64 = static_cast<int64_t>(std::trunc(result.v.p64));
+    result.v.n64 = static_cast<int64_t>(std::trunc(a.v.p64));
   } else if (op == I64TruncUF64) {
     result.t = ImmediateRepr::I64;
-    result.v.n64 = static_cast<uint64_t>(std::trunc(result.v.p64));
+    result.v.n64 = static_cast<uint64_t>(std::trunc(a.v.p64));
   } else {
     assert(false && "todo: missing case");
   }
